@@ -27,6 +27,20 @@ export const difficultyColors = {
   Hard: '#8A5B5B',
 } as const;
 
+// One-off semantic colors (from the prototype) so screens don't hardcode hex.
+export const semantic = {
+  white: '#FFFFFF',
+  accentPressed: '#3D6960',
+  accentWash: 'rgba(74,124,111,0.08)',
+  timerGradientEnd: '#6BAA9C',
+  danger: '#DC2626',
+  dangerBg: '#FEF2F2',
+  dangerBorder: '#FECACA',
+  surfaceSubtle: '#FAFAF9',
+  trackMuted: '#D4D2CE',
+  densityBg: '#F5F4F2',
+} as const;
+
 export const radius = { card: 12, sm: 8, pill: 100 } as const;
 
 export const shadow = {

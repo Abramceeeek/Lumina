@@ -36,7 +36,7 @@ export function Profile() {
           </View>
 
           <View style={styles.ringCard}>
-            <Svg width={size} height={size}>
+            <Svg width={size} height={size} accessible accessibilityLabel={`Retention score: ${retention} out of 100`}>
               <Circle cx={r + 10} cy={r + 10} r={r} fill="none" stroke={colors.border} strokeWidth={8} />
               <Circle
                 cx={r + 10}
@@ -77,7 +77,7 @@ export function Profile() {
               <Text style={styles.val}>English</Text>
             </SettingRow>
             <SettingRow label="Notifications" last>
-              <Switch value={notifs} onValueChange={setNotifs} trackColor={{ true: colors.accent, false: colors.border }} thumbColor="#fff" />
+              <Switch value={notifs} onValueChange={setNotifs} accessibilityLabel="Notifications" trackColor={{ true: colors.accent, false: colors.border }} thumbColor="#fff" />
             </SettingRow>
           </View>
         </View>

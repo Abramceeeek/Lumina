@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ScrollView, View, Text, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors } from '@/design/tokens';
+import { colors, semantic } from '@/design/tokens';
 import { fonts } from '@/design/typography';
 import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
@@ -29,8 +29,8 @@ export function Difficulty({ onNext }: { onNext: () => void }) {
             {LEVELS.map((lv) => {
               const sel = picked === lv.id;
               return (
-                <Card key={lv.id} selected={sel} onPress={() => setPicked(lv.id)} style={styles.card}>
-                  <View style={[styles.density, { backgroundColor: sel ? 'rgba(74,124,111,0.08)' : '#F5F4F2' }]}>
+                <Card key={lv.id} selected={sel} onPress={() => setPicked(lv.id)} accessibilityRole="radio" accessibilityLabel={lv.label} accessibilityHint={`${lv.desc}. ${lv.note}`} style={styles.card}>
+                  <View style={[styles.density, { backgroundColor: sel ? semantic.accentWash : semantic.densityBg }]}>
                     {Array.from({ length: lv.lines }).map((_, i) => (
                       <View
                         key={i}
@@ -38,7 +38,7 @@ export function Difficulty({ onNext }: { onNext: () => void }) {
                           height: 4,
                           borderRadius: 2,
                           marginBottom: i < lv.lines - 1 ? 5 : 0,
-                          backgroundColor: sel ? colors.accent : '#D4D2CE',
+                          backgroundColor: sel ? colors.accent : semantic.trackMuted,
                           width: i % 3 === 0 ? '60%' : i % 3 === 1 ? '100%' : '80%',
                           opacity: 0.6 + (i / lv.lines) * 0.4,
                         }}

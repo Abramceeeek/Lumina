@@ -12,7 +12,12 @@ export function Trail() {
     <View style={{ flex: 1 }}>
       <Header
         right={
-          <Pressable onPress={() => setView((v) => (v === 'linear' ? 'graph' : 'linear'))} style={styles.toggle}>
+          <Pressable
+            onPress={() => setView((v) => (v === 'linear' ? 'graph' : 'linear'))}
+            accessibilityRole="button"
+            accessibilityLabel={view === 'linear' ? 'Switch to graph view' : 'Switch to trail view'}
+            style={styles.toggle}
+          >
             <Text style={styles.toggleText}>{view === 'linear' ? 'Graph view' : 'Trail view'}</Text>
           </Pressable>
         }

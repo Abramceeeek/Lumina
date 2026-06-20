@@ -2,13 +2,25 @@ import { ReactNode } from 'react';
 import { Pressable, View, StyleSheet, ViewStyle } from 'react-native';
 import { colors, radius, shadow } from '@/design/tokens';
 
-type Props = { children: ReactNode; selected?: boolean; onPress?: () => void; style?: ViewStyle };
+type Props = {
+  children: ReactNode;
+  selected?: boolean;
+  onPress?: () => void;
+  style?: ViewStyle;
+  accessibilityLabel?: string;
+  accessibilityHint?: string;
+  accessibilityRole?: 'button' | 'radio' | 'checkbox';
+};
 
-export function Card({ children, selected, onPress, style }: Props) {
+export function Card({ children, selected, onPress, style, accessibilityLabel, accessibilityHint, accessibilityRole }: Props) {
   if (onPress) {
     return (
       <Pressable
         onPress={onPress}
+        accessibilityRole={accessibilityRole ?? 'button'}
+        accessibilityLabel={accessibilityLabel}
+        accessibilityHint={accessibilityHint}
+        accessibilityState={{ selected: Boolean(selected) }}
         style={({ pressed }) => [
           styles.card,
           {

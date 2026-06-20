@@ -30,6 +30,9 @@ export function Interests({ onNext }: { onNext: () => void }) {
                 <Pressable
                   key={t.id}
                   onPress={() => toggle(t.id)}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: sel }}
+                  accessibilityLabel={t.label}
                   style={[styles.topic, { borderColor: sel ? colors.accent : colors.border, backgroundColor: sel ? colors.accentLight : colors.card }]}
                 >
                   <Text style={{ fontSize: 22, marginBottom: 6 }}>{t.emoji}</Text>
@@ -40,7 +43,7 @@ export function Interests({ onNext }: { onNext: () => void }) {
           </View>
 
           <View style={styles.footer}>
-            <Text style={styles.counter}>{selected.length}/5 selected</Text>
+            <Text style={styles.counter} accessibilityLiveRegion="polite">{selected.length}/5 selected</Text>
             <Button label="Continue" onPress={onNext} disabled={selected.length < 3}>
               <ArrowRight />
             </Button>

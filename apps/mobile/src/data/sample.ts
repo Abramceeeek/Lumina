@@ -1,3 +1,5 @@
+import { TOPICS } from '@/design/tokens';
+
 // Sample content for the Today reader (ported from the prototype's KF_ARTICLE).
 // Replaced by server-personalized content from Phase A4 onward.
 export const SAMPLE_ARTICLE = {
@@ -72,7 +74,8 @@ export const GRAPH_NODES: GraphNode[] = [
   { id: 'n7', label: "Plato's Cave", topic: 'Philosophy', x: 490, y: 200, day: 7, read: true },
 ];
 export const GRAPH_EDGES: [string, string][] = [['n1', 'n2'], ['n2', 'n3'], ['n3', 'n4'], ['n5', 'n6'], ['n1', 'n5']];
-export const TOPIC_COLORS: Record<string, string> = { Finance: '#4A7C6F', Technology: '#5B7BA8', Philosophy: '#8A6BA8' };
+// Derived from the field taxonomy so colors never drift out of sync.
+export const TOPIC_COLORS: Record<string, string> = Object.fromEntries(TOPICS.map((t) => [t.label, t.color]));
 
 export const HIGHLIGHTS = [
   { id: 'h1', quote: 'Skills compound. Knowledge compounds. Reputation compounds.', article: 'Compound Interest', topic: 'Finance', date: 'Today' },

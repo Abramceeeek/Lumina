@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 import { Pressable, Text, View, StyleSheet, ViewStyle } from 'react-native';
-import { colors, radius, shadow } from '@/design/tokens';
+import { colors, radius, shadow, semantic } from '@/design/tokens';
 import { fonts } from '@/design/typography';
 
 type Variant = 'primary' | 'ghost' | 'soft' | 'danger';
@@ -13,20 +13,25 @@ type Props = {
   size?: Size;
   onPress?: () => void;
   disabled?: boolean;
+  accessibilityLabel?: string;
   style?: ViewStyle;
 };
 
-export function Button({ label, children, variant = 'primary', size = 'md', onPress, disabled, style }: Props) {
+export function Button({ label, children, variant = 'primary', size = 'md', onPress, disabled, accessibilityLabel, style }: Props) {
   const pad = size === 'sm'
     ? { paddingVertical: 8, paddingHorizontal: 16 }
     : { paddingVertical: 11, paddingHorizontal: 22 };
   const fontSize = size === 'sm' ? 13 : 14;
-  const textColor = variant === 'primary' ? '#fff' : variant === 'danger' ? '#DC2626' : colors.accent;
+  const textColor =
+    variant === 'primary' ? semantic.white : variant === 'danger' ? semantic.danger : variant === 'ghost' ? colors.textSec : colors.accent;
 
   return (
     <Pressable
       onPress={disabled ? undefined : onPress}
       disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityState={{ disabled: Boolean(disabled) }}
       style={({ pressed }) => [
         styles.base,
         pad,
@@ -46,13 +51,13 @@ export function Button({ label, children, variant = 'primary', size = 'md', onPr
 function variantStyle(v: Variant, pressed: boolean): ViewStyle {
   switch (v) {
     case 'primary':
-      return { backgroundColor: pressed ? '#3D6960' : colors.accent };
+      return { backgroundColor: pressed ? semantic.accentPressed : colors.accent };
     case 'ghost':
       return { backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.border, ...(pressed ? shadow : null) };
     case 'soft':
       return { backgroundColor: colors.accentLight };
     case 'danger':
-      return { backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECACA' };
+      return { backgroundColor: semantic.dangerBg, borderWidth: 1, borderColor: semantic.dangerBorder };
   }
 }
 
