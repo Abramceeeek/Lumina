@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { ScrollView, View, Text, StyleSheet } from 'react-native';
 import { colors, radius } from '@/design/tokens';
 import { fonts } from '@/design/typography';
@@ -7,10 +8,39 @@ import { Button } from '@/components/Button';
 import { ArrowRight } from '@/components/icons';
 import { SAMPLE_ARTICLE } from '@/data/sample';
 
-// A0: faithful static port of the prototype's article reader.
-// Timer gating + highlight-to-save land in Phase A2.
-export function TodayReader() {
+// A2: reader with a finish-reading timer that gates the next step, plus
+// long-press-to-save highlights (RN-native stand-in for the prototype's
+// text-selection flow).
+export function Article({ onFinish }: { onFinish: () => void }) {
   const a = SAMPLE_ARTICLE;
+  const totalSecs = a.readTime * 60;
+  const [progress, setProgress] = useState(0);
+  const [timerDone, setTimerDone] = useState(false);
+  const [toast, setToast] = useState(false);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (timerDone) return;
+    const id = setInterval(() => {
+      setProgress((p) => {
+        const next = p + 100 / totalSecs;
+        if (next >= 100) {
+          clearInterval(id);
+          setTimerDone(true);
+          return 100;
+        }
+        return next;
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  }, [timerDone, totalSecs]);
+
+  const saveHighlight = () => {
+    setToast(true);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(false), 2000);
+  };
+
   return (
     <View style={{ flex: 1 }}>
       <Header
@@ -36,12 +66,17 @@ export function TodayReader() {
           <Text style={styles.title}>{a.subtopic}</Text>
 
           <View style={styles.timerTrack}>
-            <View style={styles.timerFill} />
+            <View style={[styles.timerFill, { width: `${progress}%` }]} />
           </View>
+          {!timerDone && (
+            <Text style={styles.timerCaption}>Take your time — the next step unlocks when you&apos;re done reading.</Text>
+          )}
 
-          <View style={{ gap: 22, marginTop: 8 }}>
+          <Text style={styles.hint}>Long-press a paragraph to save a highlight.</Text>
+
+          <View style={{ gap: 22 }}>
             {a.body.map((p, i) => (
-              <Text key={i} style={[styles.para, i === 0 ? styles.paraLead : null]}>
+              <Text key={i} selectable onLongPress={saveHighlight} style={[styles.para, i === 0 ? styles.paraLead : null]}>
                 {p}
               </Text>
             ))}
@@ -54,18 +89,31 @@ export function TodayReader() {
           </View>
 
           <View style={{ alignItems: 'center', marginTop: 24 }}>
-            <Button label="Quick quiz — then choose next">
-              <ArrowRight />
-            </Button>
+            {!timerDone ? (
+              <Text style={styles.gateText}>Finish reading to continue</Text>
+            ) : (
+              <>
+                <Text style={styles.greatText}>Great reading! Now let&apos;s check in.</Text>
+                <Button label="Quick quiz — then choose next" onPress={onFinish}>
+                  <ArrowRight />
+                </Button>
+              </>
+            )}
           </View>
         </View>
       </ScrollView>
+
+      {toast && (
+        <View style={styles.toast}>
+          <Text style={styles.toastText}>Highlight saved ✓</Text>
+        </View>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: { paddingVertical: 40, paddingHorizontal: 20 },
+  scroll: { paddingTop: 24, paddingHorizontal: 20, paddingBottom: 40 },
   article: { width: '100%', maxWidth: 680, alignSelf: 'center' },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   diffBadge: { paddingVertical: 5, paddingHorizontal: 10, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card },
@@ -76,10 +124,16 @@ const styles = StyleSheet.create({
   metaText: { color: colors.textTer, fontSize: 13, fontFamily: fonts.regular },
   title: { fontSize: 30, fontFamily: fonts.semibold, letterSpacing: -1, lineHeight: 36, color: colors.text, marginBottom: 18 },
   timerTrack: { height: 3, backgroundColor: colors.border, borderRadius: 2, overflow: 'hidden', marginBottom: 8 },
-  timerFill: { height: '100%', width: '40%', backgroundColor: colors.accent, borderRadius: 2 },
+  timerFill: { height: '100%', backgroundColor: colors.accent, borderRadius: 2 },
+  timerCaption: { fontSize: 12, color: colors.textTer, fontStyle: 'italic', fontFamily: fonts.regular },
+  hint: { fontSize: 12, color: colors.textTer, fontFamily: fonts.regular, marginTop: 12, marginBottom: 16 },
   para: { fontSize: 18, lineHeight: 32, color: colors.textSec, fontFamily: fonts.regular },
   paraLead: { color: colors.text, fontFamily: fonts.medium },
   endRow: { flexDirection: 'row', alignItems: 'center', gap: 16, marginTop: 48 },
   endLine: { flex: 1, height: 1, backgroundColor: colors.border },
   endText: { fontSize: 13, color: colors.textTer, fontStyle: 'italic', fontFamily: fonts.regular },
+  gateText: { color: colors.textTer, fontSize: 14, fontFamily: fonts.regular },
+  greatText: { color: colors.textSec, fontSize: 15, fontFamily: fonts.regular, marginBottom: 16 },
+  toast: { position: 'absolute', bottom: 24, alignSelf: 'center', backgroundColor: colors.text, paddingVertical: 10, paddingHorizontal: 18, borderRadius: radius.pill },
+  toastText: { color: '#fff', fontSize: 13, fontFamily: fonts.medium },
 });

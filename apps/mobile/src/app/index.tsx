@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '@/design/tokens';
 import { BottomNav } from '@/components/BottomNav';
 import { TabId } from '@/components/icons';
-import { TodayReader } from '@/screens/TodayReader';
+import { TodayFlow } from '@/screens/today/TodayFlow';
 import { Placeholder } from '@/screens/Placeholder';
 import { Onboarding } from '@/screens/onboarding/Onboarding';
 
@@ -22,7 +22,7 @@ export default function Lumina() {
   return (
     <SafeAreaView edges={['top']} style={styles.root}>
       <View style={styles.content}>
-        {tab === 'today' && <TodayReader />}
+        {tab === 'today' && <TodayFlow />}
         {tab === 'trail' && <Placeholder title="Trail" subtitle="Your knowledge trail — coming soon." />}
         {tab === 'notes' && <Placeholder title="Notes" subtitle="Saved highlights & vocabulary — coming soon." />}
         {tab === 'social' && <Placeholder title="Social" subtitle="Friends & leaderboard — coming soon." />}
