@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { TextInput, StyleSheet, ViewStyle, KeyboardTypeOptions } from 'react-native';
+import { TextInput, StyleSheet, StyleProp, TextStyle, KeyboardTypeOptions } from 'react-native';
 import { colors, radius } from '@/design/tokens';
 import { fonts } from '@/design/typography';
 
@@ -10,7 +10,7 @@ type Props = {
   secureTextEntry?: boolean;
   keyboardType?: KeyboardTypeOptions;
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
-  style?: ViewStyle;
+  style?: StyleProp<TextStyle>;
 };
 
 export function Input({ placeholder, value, onChangeText, secureTextEntry, keyboardType, autoCapitalize, style }: Props) {

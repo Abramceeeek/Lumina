@@ -27,6 +27,17 @@ export function Check({ color = '#fff', size = 9 }: IconProps) {
   );
 }
 
+export function GoogleIcon({ size = 16 }: { size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 16 16" fill="none">
+      <Path d="M14.5 8.17c0-.46-.04-.9-.12-1.33H8v2.51h3.64a3.12 3.12 0 01-1.35 2.05v1.7h2.18c1.27-1.17 2.03-2.9 2.03-4.93z" fill="#4285F4" />
+      <Path d="M8 15c1.83 0 3.37-.6 4.49-1.64l-2.18-1.7a4.39 4.39 0 01-2.31.64 4.38 4.38 0 01-4.12-3.03H1.62v1.76A7 7 0 008 15z" fill="#34A853" />
+      <Path d="M3.88 9.27A4.4 4.4 0 013.65 8c0-.44.07-.87.23-1.27V4.97H1.62A7.01 7.01 0 001 8c0 1.13.27 2.2.62 3.03l2.26-1.76z" fill="#FBBC04" />
+      <Path d="M8 3.62c1.03 0 1.95.36 2.68 1.05l2-2A7 7 0 008 1 7 7 0 001.62 4.97l2.26 1.76A4.38 4.38 0 018 3.62z" fill="#EA4335" />
+    </Svg>
+  );
+}
+
 export type TabId = 'today' | 'trail' | 'notes' | 'social' | 'profile';
 
 // Bottom-nav glyphs, ported from the prototype's NAV config.
