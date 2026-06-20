@@ -5,7 +5,10 @@ import { colors } from '@/design/tokens';
 import { BottomNav } from '@/components/BottomNav';
 import { TabId } from '@/components/icons';
 import { TodayFlow } from '@/screens/today/TodayFlow';
-import { Placeholder } from '@/screens/Placeholder';
+import { Trail } from '@/screens/Trail';
+import { Notes } from '@/screens/Notes';
+import { Social } from '@/screens/Social';
+import { Profile } from '@/screens/Profile';
 import { Onboarding } from '@/screens/onboarding/Onboarding';
 
 // A0 app shell: the prototype is a state machine, so the client mirrors it —
@@ -23,10 +26,10 @@ export default function Lumina() {
     <SafeAreaView edges={['top']} style={styles.root}>
       <View style={styles.content}>
         {tab === 'today' && <TodayFlow />}
-        {tab === 'trail' && <Placeholder title="Trail" subtitle="Your knowledge trail — coming soon." />}
-        {tab === 'notes' && <Placeholder title="Notes" subtitle="Saved highlights & vocabulary — coming soon." />}
-        {tab === 'social' && <Placeholder title="Social" subtitle="Friends & leaderboard — coming soon." />}
-        {tab === 'profile' && <Placeholder title="Profile" subtitle="Your progress — coming soon." />}
+        {tab === 'trail' && <Trail />}
+        {tab === 'notes' && <Notes />}
+        {tab === 'social' && <Social />}
+        {tab === 'profile' && <Profile />}
       </View>
       <BottomNav active={tab} onChange={setTab} />
     </SafeAreaView>
