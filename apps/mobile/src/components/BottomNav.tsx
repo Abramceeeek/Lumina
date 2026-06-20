@@ -19,7 +19,7 @@ export function BottomNav({ active, onChange }: { active: TabId; onChange: (t: T
       {TABS.map((t) => {
         const on = t.id === active;
         return (
-          <Pressable key={t.id} onPress={() => onChange(t.id)} style={styles.item}>
+          <Pressable key={t.id} onPress={() => onChange(t.id)} accessibilityRole="tab" accessibilityState={{ selected: on }} accessibilityLabel={t.label} style={styles.item}>
             <NavIcon name={t.id} active={on} />
             <Text style={[styles.label, { color: on ? colors.accent : colors.textTer }]}>{t.label}</Text>
           </Pressable>

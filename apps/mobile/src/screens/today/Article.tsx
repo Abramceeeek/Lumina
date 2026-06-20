@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ScrollView, View, Text, StyleSheet } from 'react-native';
-import { colors, radius } from '@/design/tokens';
+import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
+import { colors, radius, semantic } from '@/design/tokens';
 import { fonts } from '@/design/typography';
 import { Header } from '@/components/Header';
 import { Pill } from '@/components/Pill';
@@ -37,6 +38,13 @@ export function Article({ onFinish }: { onFinish: () => void }) {
     return () => clearInterval(id);
   }, [timerDone, totalSecs]);
 
+  useEffect(
+    () => () => {
+      if (toastTimer.current) clearTimeout(toastTimer.current);
+    },
+    [],
+  );
+
   const saveHighlight = (text: string) => {
     addHighlight({ quote: text, article: a.subtopic, topic: a.topic });
     setToast(true);
@@ -69,7 +77,15 @@ export function Article({ onFinish }: { onFinish: () => void }) {
           <Text style={styles.title}>{a.subtopic}</Text>
 
           <View style={styles.timerTrack}>
-            <View style={[styles.timerFill, { width: `${progress}%` }]} />
+            <Svg width="100%" height={3}>
+              <Defs>
+                <LinearGradient id="timerGrad" x1="0" y1="0" x2="1" y2="0">
+                  <Stop offset="0" stopColor={colors.accent} />
+                  <Stop offset="1" stopColor={semantic.timerGradientEnd} />
+                </LinearGradient>
+              </Defs>
+              <Rect x={0} y={0} width={`${progress}%`} height={3} rx={2} fill={timerDone ? colors.accent : 'url(#timerGrad)'} />
+            </Svg>
           </View>
           {!timerDone && (
             <Text style={styles.timerCaption}>Take your time — the next step unlocks when you&apos;re done reading.</Text>
@@ -79,7 +95,7 @@ export function Article({ onFinish }: { onFinish: () => void }) {
 
           <View style={{ gap: 22 }}>
             {a.body.map((p, i) => (
-              <Text key={i} selectable onLongPress={() => saveHighlight(p)} style={[styles.para, i === 0 ? styles.paraLead : null]}>
+              <Text key={i} selectable onLongPress={() => saveHighlight(p)} accessibilityHint="Long-press to save this paragraph as a highlight" style={[styles.para, i === 0 ? styles.paraLead : null]}>
                 {p}
               </Text>
             ))}
@@ -116,7 +132,7 @@ export function Article({ onFinish }: { onFinish: () => void }) {
 }
 
 const styles = StyleSheet.create({
-  scroll: { paddingTop: 24, paddingHorizontal: 20, paddingBottom: 40 },
+  scroll: { paddingTop: 44, paddingHorizontal: 20, paddingBottom: 40 },
   article: { width: '100%', maxWidth: 680, alignSelf: 'center' },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   diffBadge: { paddingVertical: 5, paddingHorizontal: 10, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card },
@@ -125,9 +141,8 @@ const styles = StyleSheet.create({
   streakText: { fontSize: 13, fontFamily: fonts.medium, color: colors.accent },
   meta: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 18 },
   metaText: { color: colors.textTer, fontSize: 13, fontFamily: fonts.regular },
-  title: { fontSize: 30, fontFamily: fonts.semibold, letterSpacing: -1, lineHeight: 36, color: colors.text, marginBottom: 18 },
+  title: { fontSize: 30, fontFamily: fonts.semibold, letterSpacing: -1, lineHeight: 36, color: colors.text, marginBottom: 16 },
   timerTrack: { height: 3, backgroundColor: colors.border, borderRadius: 2, overflow: 'hidden', marginBottom: 8 },
-  timerFill: { height: '100%', backgroundColor: colors.accent, borderRadius: 2 },
   timerCaption: { fontSize: 12, color: colors.textTer, fontStyle: 'italic', fontFamily: fonts.regular },
   hint: { fontSize: 12, color: colors.textTer, fontFamily: fonts.regular, marginTop: 12, marginBottom: 16 },
   para: { fontSize: 18, lineHeight: 32, color: colors.textSec, fontFamily: fonts.regular },

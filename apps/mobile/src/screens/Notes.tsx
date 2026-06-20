@@ -40,7 +40,7 @@ export function Notes() {
             {FILTERS.map((t) => {
               const on = filter === t;
               return (
-                <Pressable key={t} onPress={() => setFilter(t)} style={[styles.filter, { borderColor: on ? colors.accent : colors.border, backgroundColor: on ? colors.accentLight : colors.card }]}>
+                <Pressable key={t} onPress={() => setFilter(t)} accessibilityRole="tab" accessibilityState={{ selected: on }} accessibilityLabel={`Filter: ${t}`} style={[styles.filter, { borderColor: on ? colors.accent : colors.border, backgroundColor: on ? colors.accentLight : colors.card }]}>
                   <Text style={{ fontSize: 13, color: on ? colors.accent : colors.textSec, fontFamily: on ? fonts.medium : fonts.regular }}>{t}</Text>
                 </Pressable>
               );
@@ -72,7 +72,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 22, fontFamily: fonts.semibold, letterSpacing: -0.6, marginBottom: 20, color: colors.text },
   search: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, paddingVertical: 10, paddingHorizontal: 14, fontSize: 14, fontFamily: fonts.regular, color: colors.text, backgroundColor: colors.card, marginBottom: 12 },
   filters: { flexDirection: 'row', gap: 6, marginBottom: 24 },
-  filter: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: radius.pill, borderWidth: 1 },
+  filter: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: radius.pill, borderWidth: 1, minHeight: 44, justifyContent: 'center', alignItems: 'center' },
   card: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: radius.card, paddingVertical: 18, paddingHorizontal: 20 },
   quote: { borderLeftWidth: 3, borderLeftColor: colors.accent, paddingLeft: 14, fontSize: 16, lineHeight: 27, color: colors.text, fontStyle: 'italic', fontFamily: fonts.regular, marginBottom: 12 },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },

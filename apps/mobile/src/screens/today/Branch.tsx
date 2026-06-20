@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ScrollView, View, Text, TextInput, StyleSheet } from 'react-native';
 import { colors, radius } from '@/design/tokens';
 import { fonts } from '@/design/typography';
@@ -14,9 +14,12 @@ export function Branch({ onDone }: { onDone: () => void }) {
   const [confirmed, setConfirmed] = useState(false);
   const canConfirm = !!selected || customText.trim().length > 0;
 
+  const doneTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (doneTimer.current) clearTimeout(doneTimer.current); }, []);
+
   const confirm = () => {
     setConfirmed(true);
-    setTimeout(onDone, 900);
+    doneTimer.current = setTimeout(onDone, 900);
   };
 
   return (
@@ -79,7 +82,7 @@ export function Branch({ onDone }: { onDone: () => void }) {
 }
 
 const styles = StyleSheet.create({
-  scroll: { paddingTop: 16, paddingHorizontal: 20, paddingBottom: 80 },
+  scroll: { paddingTop: 40, paddingHorizontal: 20, paddingBottom: 80 },
   wrap: { width: '100%', maxWidth: 800, alignSelf: 'center' },
   diffBadge: { paddingVertical: 5, paddingHorizontal: 10, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card },
   diffText: { fontSize: 12, fontFamily: fonts.medium, color: colors.accent },

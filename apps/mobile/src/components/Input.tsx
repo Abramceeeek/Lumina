@@ -10,15 +10,17 @@ type Props = {
   secureTextEntry?: boolean;
   keyboardType?: KeyboardTypeOptions;
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
+  accessibilityLabel?: string;
   style?: StyleProp<TextStyle>;
 };
 
-export function Input({ placeholder, value, onChangeText, secureTextEntry, keyboardType, autoCapitalize, style }: Props) {
+export function Input({ placeholder, value, onChangeText, secureTextEntry, keyboardType, autoCapitalize, accessibilityLabel, style }: Props) {
   const [focused, setFocused] = useState(false);
   return (
     <TextInput
       placeholder={placeholder}
       placeholderTextColor={colors.textTer}
+      accessibilityLabel={accessibilityLabel ?? placeholder}
       value={value}
       onChangeText={onChangeText}
       secureTextEntry={secureTextEntry}

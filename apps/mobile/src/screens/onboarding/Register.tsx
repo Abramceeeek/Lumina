@@ -24,11 +24,11 @@ export function Register({ onNext }: { onNext: () => void }) {
           <View style={{ gap: 12 }}>
             <View>
               <Text style={styles.label}>Email</Text>
-              <Input placeholder="you@example.com" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
+              <Input placeholder="you@example.com" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" accessibilityLabel="Email" />
             </View>
             <View>
               <Text style={styles.label}>Password</Text>
-              <Input placeholder="8+ characters" value={password} onChangeText={setPassword} secureTextEntry />
+              <Input placeholder="8+ characters" value={password} onChangeText={setPassword} secureTextEntry accessibilityLabel="Password" />
             </View>
             <Button label="Create account" onPress={onNext} style={{ marginTop: 4, width: '100%' }}>
               <ArrowRight />
@@ -44,7 +44,7 @@ export function Register({ onNext }: { onNext: () => void }) {
 
           <Text style={styles.signin}>
             Already have an account?{' '}
-            <Text style={{ color: colors.accent }} onPress={onNext}>Sign in</Text>
+            <Text style={{ color: colors.accent }} onPress={onNext} accessibilityRole="button" accessibilityLabel="Sign in">Sign in</Text>
           </Text>
         </View>
       </ScrollView>
