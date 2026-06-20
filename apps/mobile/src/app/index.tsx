@@ -6,12 +6,19 @@ import { BottomNav } from '@/components/BottomNav';
 import { TabId } from '@/components/icons';
 import { TodayReader } from '@/screens/TodayReader';
 import { Placeholder } from '@/screens/Placeholder';
+import { Onboarding } from '@/screens/onboarding/Onboarding';
 
 // A0 app shell: the prototype is a state machine, so the client mirrors it —
 // one root that swaps screens under a custom bottom nav. (Onboarding + the full
 // Today flow arrive in later PRs; file-based routes can come later if needed.)
 export default function Lumina() {
+  const [onboarded, setOnboarded] = useState(false);
   const [tab, setTab] = useState<TabId>('today');
+
+  if (!onboarded) {
+    return <Onboarding onDone={() => setOnboarded(true)} />;
+  }
+
   return (
     <SafeAreaView edges={['top']} style={styles.root}>
       <View style={styles.content}>
