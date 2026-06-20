@@ -10,12 +10,14 @@ import { Notes } from '@/screens/Notes';
 import { Social } from '@/screens/Social';
 import { Profile } from '@/screens/Profile';
 import { Onboarding } from '@/screens/onboarding/Onboarding';
+import { useAppStore } from '@/store/useAppStore';
 
 // A0 app shell: the prototype is a state machine, so the client mirrors it —
 // one root that swaps screens under a custom bottom nav. (Onboarding + the full
 // Today flow arrive in later PRs; file-based routes can come later if needed.)
 export default function Lumina() {
-  const [onboarded, setOnboarded] = useState(false);
+  const onboarded = useAppStore((s) => s.onboarded);
+  const setOnboarded = useAppStore((s) => s.setOnboarded);
   const [tab, setTab] = useState<TabId>('today');
 
   if (!onboarded) {

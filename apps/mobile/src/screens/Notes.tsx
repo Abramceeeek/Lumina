@@ -5,14 +5,17 @@ import { fonts } from '@/design/typography';
 import { Header } from '@/components/Header';
 import { Pill } from '@/components/Pill';
 import { HIGHLIGHTS } from '@/data/sample';
+import { useAppStore } from '@/store/useAppStore';
 
 const FILTERS = ['All', 'Finance', 'Psychology'];
 
 export function Notes() {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('All');
+  const userHls = useAppStore((s) => s.highlights);
+  const all = [...userHls, ...HIGHLIGHTS];
   const q = search.toLowerCase();
-  const filtered = HIGHLIGHTS.filter(
+  const filtered = all.filter(
     (h) =>
       (filter === 'All' || h.topic === filter) &&
       (h.quote.toLowerCase().includes(q) || h.article.toLowerCase().includes(q)),

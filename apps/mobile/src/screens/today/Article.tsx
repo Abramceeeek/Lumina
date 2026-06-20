@@ -7,6 +7,7 @@ import { Pill } from '@/components/Pill';
 import { Button } from '@/components/Button';
 import { ArrowRight } from '@/components/icons';
 import { SAMPLE_ARTICLE } from '@/data/sample';
+import { useAppStore } from '@/store/useAppStore';
 
 // A2: reader with a finish-reading timer that gates the next step, plus
 // long-press-to-save highlights (RN-native stand-in for the prototype's
@@ -18,6 +19,7 @@ export function Article({ onFinish }: { onFinish: () => void }) {
   const [timerDone, setTimerDone] = useState(false);
   const [toast, setToast] = useState(false);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const addHighlight = useAppStore((s) => s.addHighlight);
 
   useEffect(() => {
     if (timerDone) return;
@@ -35,7 +37,8 @@ export function Article({ onFinish }: { onFinish: () => void }) {
     return () => clearInterval(id);
   }, [timerDone, totalSecs]);
 
-  const saveHighlight = () => {
+  const saveHighlight = (text: string) => {
+    addHighlight({ quote: text, article: a.subtopic, topic: a.topic });
     setToast(true);
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(false), 2000);
@@ -76,7 +79,7 @@ export function Article({ onFinish }: { onFinish: () => void }) {
 
           <View style={{ gap: 22 }}>
             {a.body.map((p, i) => (
-              <Text key={i} selectable onLongPress={saveHighlight} style={[styles.para, i === 0 ? styles.paraLead : null]}>
+              <Text key={i} selectable onLongPress={() => saveHighlight(p)} style={[styles.para, i === 0 ? styles.paraLead : null]}>
                 {p}
               </Text>
             ))}
