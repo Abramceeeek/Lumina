@@ -10,6 +10,8 @@ import { DifficultyBadge } from '@/components/DifficultyBadge';
 import { ArrowRight } from '@/components/icons';
 import { SAMPLE_ARTICLE } from '@/data/sample';
 import { useAppStore } from '@/store/useAppStore';
+import { resolvePersonalizer } from '@/ai/resolve';
+import type { Personalized } from '@/ai/types';
 
 // A2: reader with a finish-reading timer that gates the next step, plus
 // long-press-to-save highlights (RN-native stand-in for the prototype's
@@ -22,6 +24,24 @@ export function Article({ onFinish }: { onFinish: () => void }) {
   const [toast, setToast] = useState(false);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const addHighlight = useAppStore((s) => s.addHighlight);
+  const difficulty = useAppStore((s) => s.difficulty);
+  const [personalized, setPersonalized] = useState<Personalized | null>(null);
+  const [pLoading, setPLoading] = useState(false);
+
+  const personalize = async () => {
+    setPLoading(true);
+    try {
+      const provider = await resolvePersonalizer();
+      const out = await provider.personalize({ title: a.subtopic, body: a.body, language: 'English', difficulty, targetMinutes: 5 });
+      setPersonalized(out);
+    } catch {
+      setPersonalized({ body: a.body, note: 'Personalization failed — check your AI key in Profile.' });
+    } finally {
+      setPLoading(false);
+    }
+  };
+
+  const displayBody = personalized?.body ?? a.body;
 
   useEffect(() => {
     if (timerDone) return;
@@ -92,8 +112,19 @@ export function Article({ onFinish }: { onFinish: () => void }) {
 
           <Text style={styles.hint}>Long-press a paragraph to save a highlight.</Text>
 
+          <View style={styles.personalizeRow}>
+            {personalized ? (
+              <View style={{ flex: 1 }}>
+                <Text style={styles.personalizeNote}>{personalized.note}</Text>
+                <Text style={styles.showOriginal} onPress={() => setPersonalized(null)} accessibilityRole="button" accessibilityLabel="Show original article">Show original</Text>
+              </View>
+            ) : (
+              <Button variant="soft" size="sm" label={pLoading ? 'Personalizing…' : '✨ Personalize for me'} onPress={pLoading ? undefined : personalize} disabled={pLoading} />
+            )}
+          </View>
+
           <View style={{ gap: 22 }}>
-            {a.body.map((p, i) => (
+            {displayBody.map((p, i) => (
               <Text key={i} selectable onLongPress={() => saveHighlight(p)} accessibilityHint="Long-press to save this paragraph as a highlight" style={[styles.para, i === 0 ? styles.paraLead : null]}>
                 {p}
               </Text>
@@ -142,6 +173,9 @@ const styles = StyleSheet.create({
   timerTrack: { height: 3, backgroundColor: colors.border, borderRadius: 2, overflow: 'hidden', marginBottom: 8 },
   timerCaption: { fontSize: 12, color: colors.textTer, fontStyle: 'italic', fontFamily: fonts.regular },
   hint: { fontSize: 12, color: colors.textTer, fontFamily: fonts.regular, marginTop: 12, marginBottom: 16 },
+  personalizeRow: { marginBottom: 16, flexDirection: 'row', alignItems: 'flex-start' },
+  personalizeNote: { fontSize: 13, color: colors.accent, fontFamily: fonts.medium, lineHeight: 19 },
+  showOriginal: { fontSize: 13, color: colors.textTer, fontFamily: fonts.regular, marginTop: 4 },
   para: { fontSize: 18, lineHeight: 32, color: colors.textSec, fontFamily: fonts.regular },
   paraLead: { color: colors.text, fontFamily: fonts.medium },
   endRow: { flexDirection: 'row', alignItems: 'center', gap: 16, marginTop: 48 },

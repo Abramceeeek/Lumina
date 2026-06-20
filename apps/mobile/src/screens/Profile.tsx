@@ -1,9 +1,12 @@
-import { ReactNode, useState } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { ScrollView, View, Text, Switch, StyleSheet } from 'react-native';
 import Svg, { Circle, Text as SvgText } from 'react-native-svg';
 import { colors, radius } from '@/design/tokens';
 import { fonts } from '@/design/typography';
 import { Header } from '@/components/Header';
+import { Button } from '@/components/Button';
+import { Input } from '@/components/Input';
+import { getApiKey, setApiKey, clearApiKey } from '@/ai/keyStore';
 
 const STATS = [
   { label: 'Total articles', value: '12' },
@@ -14,6 +17,22 @@ const STATS = [
 
 export function Profile() {
   const [notifs, setNotifs] = useState(true);
+  const [apiKeyInput, setApiKeyInput] = useState('');
+  const [savedKey, setSavedKey] = useState<string | null>(null);
+  useEffect(() => {
+    getApiKey().then(setSavedKey);
+  }, []);
+  const saveKey = async () => {
+    const v = apiKeyInput.trim();
+    if (!v) return;
+    await setApiKey(v);
+    setSavedKey(v);
+    setApiKeyInput('');
+  };
+  const removeKey = async () => {
+    await clearApiKey();
+    setSavedKey(null);
+  };
   const retention = 74;
   const r = 44;
   const circ = 2 * Math.PI * r;
@@ -80,6 +99,21 @@ export function Profile() {
               <Switch value={notifs} onValueChange={setNotifs} accessibilityLabel="Notifications" trackColor={{ true: colors.accent, false: colors.border }} thumbColor="#fff" />
             </SettingRow>
           </View>
+
+          <Text style={[styles.h3, { marginTop: 24 }]}>AI personalization</Text>
+          <View style={styles.aiCard}>
+            <Text style={styles.aiStatus}>
+              {savedKey ? '✓ Connected — articles personalize with Claude.' : 'Using the offline demo. Add a Claude API key to personalize for real.'}
+            </Text>
+            {savedKey ? (
+              <Button variant="ghost" size="sm" label="Remove key" onPress={removeKey} style={{ marginTop: 12, alignSelf: 'flex-start' }} />
+            ) : (
+              <View style={{ marginTop: 12, gap: 8 }}>
+                <Input placeholder="sk-ant-…" value={apiKeyInput} onChangeText={setApiKeyInput} secureTextEntry autoCapitalize="none" accessibilityLabel="Anthropic API key" />
+                <Button size="sm" label="Save key" onPress={saveKey} disabled={!apiKeyInput.trim()} style={{ alignSelf: 'flex-start' }} />
+              </View>
+            )}
+          </View>
         </View>
       </ScrollView>
     </View>
@@ -111,6 +145,8 @@ const styles = StyleSheet.create({
   statValue: { fontSize: 20, fontFamily: fonts.semibold, letterSpacing: -0.4, marginBottom: 2, color: colors.text },
   statLabel: { fontSize: 12, color: colors.textTer, fontFamily: fonts.regular },
   h3: { fontSize: 15, fontFamily: fonts.semibold, color: colors.text, marginBottom: 12 },
+  aiCard: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: radius.card, padding: 16 },
+  aiStatus: { fontSize: 13, color: colors.textSec, lineHeight: 20, fontFamily: fonts.regular },
   settings: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: radius.card, overflow: 'hidden' },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, paddingHorizontal: 18 },
   rowBorder: { borderBottomWidth: 1, borderBottomColor: colors.border },
