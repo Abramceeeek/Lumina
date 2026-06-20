@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Knowledgeflow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<template id="__bundler_thumbnail" data-bg-color="#FAF9F7">
+  <svg viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+    <rect width="400" height="400" fill="#FAF9F7"/>
+    <rect x="172" y="152" width="56" height="56" rx="14" fill="#4A7C6F"/>
+    <path d="M186 194 L200 170 L214 194" stroke="white" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <path d="M192 186 L208 186" stroke="white" stroke-width="3.5" stroke-linecap="round"/>
+    <rect x="110" y="224" width="180" height="10" rx="5" fill="#4A7C6F" opacity="0.45"/>
+    <rect x="140" y="244" width="120" height="7" rx="3.5" fill="#9E9C98" opacity="0.4"/>
+    <!-- Bottom nav bar suggestion -->
+    <rect x="60" y="310" width="280" height="40" rx="12" fill="#E5E3DF" opacity="0.5"/>
+    <circle cx="130" cy="330" r="5" fill="#4A7C6F"/>
+    <circle cx="170" cy="330" r="5" fill="#C8C4BE"/>
+    <circle cx="210" cy="330" r="5" fill="#C8C4BE"/>
+    <circle cx="250" cy="330" r="5" fill="#C8C4BE"/>
+    <circle cx="290" cy="330" r="5" fill="#C8C4BE"/>
+  </svg>
+</template>
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet"/>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body, #root {
+  height: 100%; width: 100%;
+  font-family: 'Inter', sans-serif;
+  background: #FAF9F7;
+  color: #1A1A1A;
+  -webkit-font-smoothing: antialiased;
+}
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #E5E3DF; border-radius: 3px; }
+/* Bottom nav */
+.kf-nav {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  height: 64px; background: rgba(250,249,247,0.92);
+  backdrop-filter: blur(12px);
+  border-top: 1px solid #E5E3DF;
+  display: flex; align-items: center; justify-content: space-around;
+  z-index: 50; padding-bottom: env(safe-area-inset-bottom, 0);
+}
+.kf-nav-item {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  cursor: pointer; padding: 8px 16px; border-radius: 10px;
+  border: none; background: none; font-family: inherit; transition: all 0.15s;
+}
+.kf-nav-item span.label { font-size: 10px; font-weight: 500; color: #9E9C98; }
+.kf-nav-item.active span.label { color: #4A7C6F; }
+/* Tweaks panel */
+#tweaks-panel {
+  position: fixed; bottom: 80px; right: 16px; z-index: 999;
+  background: #FFFFFF; border: 1px solid #E5E3DF;
+  border-radius: 12px; padding: 18px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+  width: 240px; display: none; flex-direction: column; gap: 14px;
+  font-size: 13px;
+}
+#tweaks-panel.visible { display: flex; }
+.tw-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: #9E9C98; margin-bottom: 6px; display: block; }
+.tw-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.tw-chip { padding: 5px 11px; border-radius: 100px; border: 1px solid #E5E3DF; background: transparent; cursor: pointer; font-size: 12px; color: #6B6860; font-family: inherit; transition: all 0.12s; }
+.tw-chip.on { background: #E6F0EE; border-color: #4A7C6F; color: #4A7C6F; }
+.tw-title { font-weight: 600; font-size: 13px; color: #1A1A1A; }
+.tw-sep { height: 1px; background: #F0EDE8; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<div id="tweaks-panel">
+  <div class="tw-title">Tweaks</div>
+  <div class="tw-sep"></div>
+  <div>
+    <span class="tw-label">Accent</span>
+    <div class="tw-chips" id="tw-accent">
+      <button class="tw-chip on" data-a="#4A7C6F" data-l="#E6F0EE">Forest</button>
+      <button class="tw-chip" data-a="#5B7BA8" data-l="#EAEdf5">Slate</button>
+      <button class="tw-chip" data-a="#8A6BA8" data-l="#F0EBF7">Plum</button>
+      <button class="tw-chip" data-a="#C96442" data-l="#F5EDE9">Terra</button>
+    </div>
+  </div>
+  <div>
+    <span class="tw-label">Reading width</span>
+    <div class="tw-chips" id="tw-width">
+      <button class="tw-chip" data-w="580">Narrow</button>
+      <button class="tw-chip on" data-w="680">Normal</button>
+      <button class="tw-chip" data-w="780">Wide</button>
+    </div>
+  </div>
+  <div>
+    <span class="tw-label">Font size</span>
+    <div class="tw-chips" id="tw-size">
+      <button class="tw-chip" data-s="16">Small</button>
+      <button class="tw-chip on" data-s="18">Medium</button>
+      <button class="tw-chip" data-s="20">Large</button>
+    </div>
+  </div>
+</div>
+
+<!-- Shared primitives loaded first -->
+<script type="text/babel" src="kf-v2-shared.jsx"></script>
+<script type="text/babel" src="kf-v2-auth.jsx"></script>
+<script type="text/babel" src="kf-v2-reading.jsx"></script>
+<script type="text/babel" src="kf-v2-trail.jsx"></script>
+<script type="text/babel" src="kf-v2-misc.jsx"></script>
+
+<script type="text/babel">
+const { useState, useEffect } = React;
+
+// ── Nav config ───────────────────────────────────────────────────────────────
+const NAV = [
+  { id: 'today',   label: 'Today',  icon: (active) => (
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <rect x="3" y="5" width="16" height="14" rx="3" stroke={active ? '#4A7C6F' : '#9E9C98'} strokeWidth="1.6"/>
+      <path d="M7 2v4M15 2v4M3 10h16" stroke={active ? '#4A7C6F' : '#9E9C98'} strokeWidth="1.6" strokeLinecap="round"/>
+    </svg>
+  )},
+  { id: 'trail',   label: 'Trail',  icon: (active) => (
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <circle cx="6" cy="6" r="2.5" stroke={active ? '#4A7C6F' : '#9E9C98'} strokeWidth="1.6"/>
+      <circle cx="16" cy="11" r="2.5" stroke={active ? '#4A7C6F' : '#9E9C98'} strokeWidth="1.6"/>
+      <circle cx="9" cy="17" r="2.5" stroke={active ? '#4A7C6F' : '#9E9C98'} strokeWidth="1.6"/>
+      <path d="M8 7.5L14 10M14 12L11 15.5" stroke={active ? '#4A7C6F' : '#9E9C98'} strokeWidth="1.4"/>
+    </svg>
+  )},
+  { id: 'notes',   label: 'Notes',  icon: (active) => (
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <path d="M6 4h10a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2z" stroke={active ? '#4A7C6F' : '#9E9C98'} strokeWidth="1.6"/>
+      <path d="M7 8h8M7 11h6M7 14h4" stroke={active ? '#4A7C6F' : '#9E9C98'} strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>
+  )},
+  { id: 'social',  label: 'Social', icon: (active) => (
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <circle cx="8" cy="8" r="3" stroke={active ? '#4A7C6F' : '#9E9C98'} strokeWidth="1.6"/>
+      <circle cx="15" cy="8" r="3" stroke={active ? '#4A7C6F' : '#9E9C98'} strokeWidth="1.6"/>
+      <path d="M3 18c0-2.8 2.2-5 5-5h6c2.8 0 5 2.2 5 5" stroke={active ? '#4A7C6F' : '#9E9C98'} strokeWidth="1.6" strokeLinecap="round"/>
+    </svg>
+  )},
+  { id: 'profile', label: 'Profile',icon: (active) => (
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <circle cx="11" cy="8" r="3.5" stroke={active ? '#4A7C6F' : '#9E9C98'} strokeWidth="1.6"/>
+      <path d="M4 19c0-3.3 3.1-6 7-6s7 2.7 7 6" stroke={active ? '#4A7C6F' : '#9E9C98'} strokeWidth="1.6" strokeLinecap="round"/>
+    </svg>
+  )},
+];
+
+// ── Root App ─────────────────────────────────────────────────────────────────
+function App() {
+  const init = () => {
+    const s = localStorage.getItem('kf2_state');
+    if (s) try { return JSON.parse(s); } catch {}
+    return { auth: 'register', navTab: 'today', todayStep: 'article', trailView: 'linear', difficulty: 'Medium', showSpaced: false };
+  };
+
+  const [state, setStateRaw] = useState(init);
+  const setState = next => {
+    const merged = typeof next === 'function' ? next(state) : { ...state, ...next };
+    setStateRaw(merged);
+    localStorage.setItem('kf2_state', JSON.stringify(merged));
+  };
+
+  const { auth, navTab, todayStep, trailView, difficulty, showSpaced } = state;
+
+  // Auth flow
+  if (auth !== 'done') {
+    const steps = { register: AuthRegister, interests: AuthInterests, difficulty: AuthDifficulty };
+    const next = { register: 'interests', interests: 'difficulty', difficulty: 'done' };
+    const Screen = steps[auth];
+    return (
+      <div style={{ height: '100%', overflowY: 'auto' }}>
+        <Screen onNext={() => setState({ auth: next[auth] })} />
+      </div>
+    );
+  }
+
+  // Spaced rep overlay
+  if (showSpaced) {
+    return (
+      <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+        <SpacedRepScreen onDismiss={() => setState({ showSpaced: false })} />
+      </div>
+    );
+  }
+
+  // Main app
+  const renderContent = () => {
+    switch (navTab) {
+      case 'today':
+        if (todayStep === 'article')
+          return <ArticleScreen difficulty={difficulty} setDifficulty={d => setState({ difficulty: d })} onFinish={() => setState({ todayStep: 'quiz' })} />;
+        if (todayStep === 'quiz')
+          return <QuizScreen onFinish={() => setState({ todayStep: 'branch' })} />;
+        if (todayStep === 'branch')
+          return <BranchScreen difficulty={difficulty} setDifficulty={d => setState({ difficulty: d })} onDone={() => setState({ todayStep: 'article', auth: 'done' })} />;
+        break;
+      case 'trail':
+        return trailView === 'linear'
+          ? <TrailLinear onSwitchGraph={() => setState({ trailView: 'graph' })} />
+          : <TrailGraph onSwitchLinear={() => setState({ trailView: 'linear' })} />;
+      case 'notes':
+        return <NotesScreen />;
+      case 'social':
+        return <FriendsScreen />;
+      case 'profile':
+        return <ProfileScreen />;
+      default:
+        return null;
+    }
+  };
+
+  // Sub-nav items for "Today" tab
+  const todaySubnav = ['article', 'quiz', 'branch'];
+  const todaySubLabels = ['Read', 'Quiz', 'Choose'];
+
+  return (
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      {/* Today sub-progress bar */}
+      {navTab === 'today' && (
+        <div style={{ display: 'flex', gap: 4, padding: '8px 20px 0', background: '#FAF9F7' }}>
+          {todaySubnav.map((step, i) => {
+            const cur = todaySubnav.indexOf(todayStep);
+            const done = i < cur, active = i === cur;
+            return (
+              <div key={step} style={{ flex: 1 }}>
+                <div style={{ height: 3, borderRadius: 2, background: done || active ? '#4A7C6F' : '#E5E3DF', opacity: active ? 1 : done ? 0.6 : 1, transition: 'all 0.3s' }} />
+                <div style={{ fontSize: 10, color: active ? '#4A7C6F' : '#9E9C98', fontWeight: active ? 600 : 400, textAlign: 'center', marginTop: 3 }}>{todaySubLabels[i]}</div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Main content */}
+      <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', paddingBottom: 64 }}>
+        {renderContent()}
+      </div>
+
+      {/* Bottom nav */}
+      <nav className="kf-nav">
+        {NAV.map(n => (
+          <button key={n.id} className={`kf-nav-item${navTab === n.id ? ' active' : ''}`}
+            onClick={() => setState({ navTab: n.id })}>
+            {n.icon(navTab === n.id)}
+            <span className="label">{n.label}</span>
+          </button>
+        ))}
+      </nav>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+
+<script>
+// ── Tweaks ────────────────────────────────────────────────────────────────────
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "accent": "#4A7C6F",
+  "accentLight": "#E6F0EE",
+  "readWidth": 680,
+  "fontSize": 18
+}/*EDITMODE-END*/;
+
+function applyT(t) {
+  document.documentElement.style.setProperty('--accent', t.accent);
+  // Inject into CSS if T is available
+  if (window.T) {
+    window.T.accent = t.accent;
+    window.T.accentLight = t.accentLight;
+  }
+}
+applyT(TWEAK_DEFAULTS);
+
+document.getElementById('tw-accent').addEventListener('click', e => {
+  const c = e.target.closest('[data-a]'); if (!c) return;
+  document.querySelectorAll('#tw-accent .tw-chip').forEach(x => x.classList.remove('on'));
+  c.classList.add('on');
+  if (window.T) { window.T.accent = c.dataset.a; window.T.accentLight = c.dataset.l; }
+  window.parent.postMessage({ type: '__edit_mode_set_keys', edits: { accent: c.dataset.a, accentLight: c.dataset.l } }, '*');
+});
+document.getElementById('tw-width').addEventListener('click', e => {
+  const c = e.target.closest('[data-w]'); if (!c) return;
+  document.querySelectorAll('#tw-width .tw-chip').forEach(x => x.classList.remove('on'));
+  c.classList.add('on');
+  window.parent.postMessage({ type: '__edit_mode_set_keys', edits: { readWidth: Number(c.dataset.w) } }, '*');
+});
+document.getElementById('tw-size').addEventListener('click', e => {
+  const c = e.target.closest('[data-s]'); if (!c) return;
+  document.querySelectorAll('#tw-size .tw-chip').forEach(x => x.classList.remove('on'));
+  c.classList.add('on');
+  document.documentElement.style.fontSize = c.dataset.s + 'px';
+  window.parent.postMessage({ type: '__edit_mode_set_keys', edits: { fontSize: Number(c.dataset.s) } }, '*');
+});
+
+window.addEventListener('message', e => {
+  if (e.data?.type === '__activate_edit_mode') document.getElementById('tweaks-panel').classList.add('visible');
+  if (e.data?.type === '__deactivate_edit_mode') document.getElementById('tweaks-panel').classList.remove('visible');
+});
+window.parent.postMessage({ type: '__edit_mode_available' }, '*');
+</script>
+</body>
+</html>
