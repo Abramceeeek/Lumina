@@ -1,0 +1,41 @@
+import { ReactNode } from 'react';
+import { Pressable, View, StyleSheet, ViewStyle } from 'react-native';
+import { colors, radius, shadow } from '@/design/tokens';
+
+type Props = { children: ReactNode; selected?: boolean; onPress?: () => void; style?: ViewStyle };
+
+export function Card({ children, selected, onPress, style }: Props) {
+  if (onPress) {
+    return (
+      <Pressable
+        onPress={onPress}
+        style={({ pressed }) => [
+          styles.card,
+          {
+            backgroundColor: selected ? colors.accentLight : colors.card,
+            borderColor: selected ? colors.accent : pressed ? '#C8C4BE' : colors.border,
+          },
+          pressed && !selected ? shadow : null,
+          style,
+        ]}
+      >
+        {children}
+      </Pressable>
+    );
+  }
+  return (
+    <View
+      style={[
+        styles.card,
+        { backgroundColor: selected ? colors.accentLight : colors.card, borderColor: selected ? colors.accent : colors.border },
+        style,
+      ]}
+    >
+      {children}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  card: { borderWidth: 1.5, borderRadius: radius.card, paddingVertical: 16, paddingHorizontal: 18 },
+});
