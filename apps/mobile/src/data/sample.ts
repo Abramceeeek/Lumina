@@ -1,4 +1,5 @@
 import { TOPICS } from '@/design/tokens';
+import type { QuizQuestion } from '@/lib/quiz';
 
 // Sample content for the Today reader (ported from the prototype's KF_ARTICLE).
 // Replaced by server-personalized content from Phase A4 onward.
@@ -17,7 +18,7 @@ export const SAMPLE_ARTICLE = {
   ],
 };
 
-export const SAMPLE_QUIZ = [
+export const SAMPLE_QUIZ: QuizQuestion[] = [
   {
     type: 'mc' as const,
     q: 'What does "compound interest" mean?',
