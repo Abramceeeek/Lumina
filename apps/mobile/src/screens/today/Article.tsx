@@ -6,6 +6,7 @@ import { fonts } from '@/design/typography';
 import { Header } from '@/components/Header';
 import { Pill } from '@/components/Pill';
 import { Button } from '@/components/Button';
+import { DifficultyBadge } from '@/components/DifficultyBadge';
 import { ArrowRight } from '@/components/icons';
 import { SAMPLE_ARTICLE } from '@/data/sample';
 import { useAppStore } from '@/store/useAppStore';
@@ -57,9 +58,7 @@ export function Article({ onFinish }: { onFinish: () => void }) {
       <Header
         right={
           <View style={styles.headerRight}>
-            <View style={styles.diffBadge}>
-              <Text style={styles.diffText}>{a.difficulty}</Text>
-            </View>
+            <DifficultyBadge />
             <View style={styles.streak}>
               <Text style={{ fontSize: 15 }}>🔥</Text>
               <Text style={styles.streakText}>Day {a.day}</Text>
@@ -135,8 +134,6 @@ const styles = StyleSheet.create({
   scroll: { paddingTop: 44, paddingHorizontal: 20, paddingBottom: 40 },
   article: { width: '100%', maxWidth: 680, alignSelf: 'center' },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  diffBadge: { paddingVertical: 5, paddingHorizontal: 10, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card },
-  diffText: { fontSize: 12, fontFamily: fonts.medium, color: colors.accent },
   streak: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: colors.accentLight, paddingVertical: 5, paddingHorizontal: 12, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border },
   streakText: { fontSize: 13, fontFamily: fonts.medium, color: colors.accent },
   meta: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 18 },

@@ -5,6 +5,7 @@ import { fonts } from '@/design/typography';
 import { Header } from '@/components/Header';
 import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
+import { DifficultyBadge } from '@/components/DifficultyBadge';
 import { ChevronRight, Check } from '@/components/icons';
 import { SAMPLE_BRANCHES } from '@/data/sample';
 
@@ -24,7 +25,7 @@ export function Branch({ onDone }: { onDone: () => void }) {
 
   return (
     <View style={{ flex: 1 }}>
-      <Header right={<View style={styles.diffBadge}><Text style={styles.diffText}>Medium</Text></View>} />
+      <Header right={<DifficultyBadge />} />
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <View style={styles.wrap}>
           <View style={styles.crumb}>
@@ -84,8 +85,6 @@ export function Branch({ onDone }: { onDone: () => void }) {
 const styles = StyleSheet.create({
   scroll: { paddingTop: 40, paddingHorizontal: 20, paddingBottom: 80 },
   wrap: { width: '100%', maxWidth: 800, alignSelf: 'center' },
-  diffBadge: { paddingVertical: 5, paddingHorizontal: 10, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card },
-  diffText: { fontSize: 12, fontFamily: fonts.medium, color: colors.accent },
   crumb: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 24 },
   crumbTer: { fontSize: 13, color: colors.textTer, fontFamily: fonts.regular },
   crumbSec: { fontSize: 13, color: colors.textSec, fontFamily: fonts.medium },

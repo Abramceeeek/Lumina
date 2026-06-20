@@ -7,18 +7,16 @@ import { Pill } from '@/components/Pill';
 import { Button } from '@/components/Button';
 import { ArrowRight } from '@/components/icons';
 import { SAMPLE_QUIZ } from '@/data/sample';
+import { mcCount, mcScore, allMcAnswered } from '@/lib/quiz';
 
 export function Quiz({ onFinish }: { onFinish: () => void }) {
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [openText, setOpenText] = useState('');
   const [submitted, setSubmitted] = useState(false);
 
-  const mcCount = SAMPLE_QUIZ.filter((q) => q.type === 'mc').length;
-  const mcCorrect = SAMPLE_QUIZ.reduce(
-    (acc, q, i) => (q.type === 'mc' && answers[i] === q.correct ? acc + 1 : acc),
-    0,
-  );
-  const mcAnswered = SAMPLE_QUIZ.every((q, i) => q.type !== 'mc' || answers[i] !== undefined);
+  const total = mcCount(SAMPLE_QUIZ);
+  const correct = mcScore(SAMPLE_QUIZ, answers);
+  const answered = allMcAnswered(SAMPLE_QUIZ, answers);
 
   const finishTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (finishTimer.current) clearTimeout(finishTimer.current); }, []);
@@ -85,11 +83,11 @@ export function Quiz({ onFinish }: { onFinish: () => void }) {
 
           {submitted ? (
             <Text style={styles.result}>
-              ✓ {mcCorrect === mcCount ? 'Perfect score!' : mcCorrect === 1 ? 'Good effort!' : 'Keep reading!'} Moving on…
+              ✓ {correct === total ? 'Perfect score!' : correct === 1 ? 'Good effort!' : 'Keep reading!'} Moving on…
             </Text>
           ) : (
             <View style={styles.footer}>
-              <Button label="See what's next" onPress={submit} disabled={!mcAnswered}>
+              <Button label="See what's next" onPress={submit} disabled={!answered}>
                 <ArrowRight />
               </Button>
             </View>
