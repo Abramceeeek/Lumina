@@ -1,3 +1,4 @@
+import { describe, it, expect } from '@jest/globals';
 import { TOPICS, CEFR, FIELD_LEVELS, accentThemes, difficultyColors } from '../tokens';
 
 describe('design tokens', () => {
