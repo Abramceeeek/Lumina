@@ -24,4 +24,17 @@ Settings → **Authentication → Providers → Google** → enable and add OAut
 (matches the onboarding "Continue with Google" button).
 
 > The **service_role** key is a server secret — never put it in the app or `.env.example`.
-> It belongs only in server-side Edge Functions (B-track).
+> It belongs only in server-side Edge Functions.
+
+## Hosted AI (optional — so users don't paste their own key)
+
+`functions/personalize/` rewrites articles using the project's own Claude key.
+
+```
+supabase functions deploy personalize
+supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
+```
+
+Once deployed, the app uses it automatically. Resolution order: a user's own key
+(Profile) → this hosted function → offline demo. Until you deploy it, the app
+silently falls back to the demo, so nothing breaks in the meantime.
