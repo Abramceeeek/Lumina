@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ScrollView, View, Text, TextInput, Pressable, StyleSheet } from 'react-native';
 import { colors, radius } from '@/design/tokens';
 import { fonts } from '@/design/typography';
@@ -6,6 +6,9 @@ import { Header } from '@/components/Header';
 import { Pill } from '@/components/Pill';
 import { HIGHLIGHTS } from '@/data/sample';
 import { useAppStore } from '@/store/useAppStore';
+import type { SavedHighlight } from '@/store/useAppStore';
+import { isSupabaseConfigured } from '@/data/supabase';
+import { listHighlightsRemote } from '@/data/highlights';
 
 const FILTERS = ['All', 'Finance', 'Psychology'];
 
@@ -13,7 +16,16 @@ export function Notes() {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('All');
   const userHls = useAppStore((s) => s.highlights);
-  const all = [...userHls, ...HIGHLIGHTS];
+  const [remote, setRemote] = useState<SavedHighlight[]>([]);
+  useEffect(() => {
+    if (isSupabaseConfigured) listHighlightsRemote().then(setRemote).catch(() => {});
+  }, []);
+  const seen = new Set<string>();
+  const all = [...userHls, ...remote, ...HIGHLIGHTS].filter((h) => {
+    if (seen.has(h.quote)) return false;
+    seen.add(h.quote);
+    return true;
+  });
   const q = search.toLowerCase();
   const filtered = all.filter(
     (h) =>
