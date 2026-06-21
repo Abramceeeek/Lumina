@@ -8,17 +8,23 @@ import { Button } from '@/components/Button';
 import { DifficultyBadge } from '@/components/DifficultyBadge';
 import { ChevronRight, Check } from '@/components/icons';
 import { SAMPLE_BRANCHES } from '@/data/sample';
+import { useAppStore } from '@/store/useAppStore';
 
 export function Branch({ onDone }: { onDone: () => void }) {
   const [selected, setSelected] = useState<string | null>(null);
   const [customText, setCustomText] = useState('');
   const [confirmed, setConfirmed] = useState(false);
   const canConfirm = !!selected || customText.trim().length > 0;
+  const setNextTopic = useAppStore((s) => s.setNextTopic);
+  const setCompletedDate = useAppStore((s) => s.setCompletedDate);
 
   const doneTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (doneTimer.current) clearTimeout(doneTimer.current); }, []);
 
   const confirm = () => {
+    const chosen = SAMPLE_BRANCHES.find((b) => b.id === selected);
+    setNextTopic(customText.trim() || chosen?.title || 'your next topic');
+    setCompletedDate(new Date().toISOString().slice(0, 10));
     setConfirmed(true);
     doneTimer.current = setTimeout(onDone, 900);
   };
