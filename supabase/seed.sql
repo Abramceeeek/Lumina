@@ -23,7 +23,7 @@ from fields f
 join (values
   ('accounting',        'Accounting',           'How businesses record and report money.'),
   ('audit',             'Audit',                'Verifying that the numbers tell the truth.'),
-  ('data-analytics',    'Data Analytics',        'Turning financial data into decisions.'),
+  ('data-analytics',    'Data Analytics',        'Finding the story in financial data.'),
   ('time-value',        'Time Value of Money',   'Why a dollar today beats a dollar tomorrow.'),
   ('compound-interest', 'Compound Interest',     'Returns that earn returns.'),
   ('rule-of-72',        'The Rule of 72',        'A mental shortcut for doubling time.'),

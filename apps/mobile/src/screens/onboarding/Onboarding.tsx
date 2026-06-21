@@ -1,15 +1,23 @@
 import { useState } from 'react';
-import { Register } from './Register';
+import type { Difficulty as Diff } from '@/design/tokens';
 import { Interests } from './Interests';
 import { Difficulty } from './Difficulty';
 
-type Step = 'register' | 'interests' | 'difficulty';
+// Post-auth onboarding: pick interests, then difficulty. Auth is handled
+// upstream (real Supabase auth in cloud mode; skipped in local mode).
+export function Onboarding({ onDone }: { onDone: (data: { fields: string[]; difficulty: Diff }) => void }) {
+  const [step, setStep] = useState<'interests' | 'difficulty'>('interests');
+  const [fields, setFields] = useState<string[]>([]);
 
-// A1: onboarding flow (UI + local state). Supabase auth + persistence wire in at S1.
-export function Onboarding({ onDone }: { onDone: () => void }) {
-  const [step, setStep] = useState<Step>('register');
-
-  if (step === 'register') return <Register onNext={() => setStep('interests')} />;
-  if (step === 'interests') return <Interests onNext={() => setStep('difficulty')} />;
-  return <Difficulty onNext={onDone} />;
+  if (step === 'interests') {
+    return (
+      <Interests
+        onNext={(selected) => {
+          setFields(selected);
+          setStep('difficulty');
+        }}
+      />
+    );
+  }
+  return <Difficulty onNext={(difficulty) => onDone({ fields, difficulty })} />;
 }
