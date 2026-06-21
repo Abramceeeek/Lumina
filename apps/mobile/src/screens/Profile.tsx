@@ -7,6 +7,8 @@ import { Header } from '@/components/Header';
 import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
 import { getApiKey, setApiKey, clearApiKey } from '@/ai/keyStore';
+import { signOut } from '@/data/auth';
+import { isSupabaseConfigured } from '@/data/supabase';
 
 const STATS = [
   { label: 'Total articles', value: '12' },
@@ -114,6 +116,10 @@ export function Profile() {
               </View>
             )}
           </View>
+
+          {isSupabaseConfigured ? (
+            <Button variant="ghost" size="sm" label="Sign out" onPress={signOut} style={{ marginTop: 24, alignSelf: 'flex-start' }} />
+          ) : null}
         </View>
       </ScrollView>
     </View>

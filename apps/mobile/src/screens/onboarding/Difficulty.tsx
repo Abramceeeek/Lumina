@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ScrollView, View, Text, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, semantic } from '@/design/tokens';
+import type { Difficulty as Diff } from '@/design/tokens';
 import { fonts } from '@/design/typography';
 import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
@@ -13,7 +14,7 @@ const LEVELS = [
   { id: 'hard', label: 'Hard', desc: 'Technical vocabulary, ~1000 words', note: "Don't hold back.", lines: 11 },
 ];
 
-export function Difficulty({ onNext }: { onNext: () => void }) {
+export function Difficulty({ onNext }: { onNext: (difficulty: Diff) => void }) {
   const [picked, setPicked] = useState('medium');
   return (
     <SafeAreaView style={styles.safe}>
@@ -54,7 +55,7 @@ export function Difficulty({ onNext }: { onNext: () => void }) {
           </View>
 
           <View style={{ alignItems: 'center', marginTop: 8 }}>
-            <Button label="Begin your journey" onPress={onNext}>
+            <Button label="Begin your journey" onPress={() => onNext((LEVELS.find((l) => l.id === picked)?.label ?? 'Medium') as Diff)}>
               <ArrowRight />
             </Button>
           </View>

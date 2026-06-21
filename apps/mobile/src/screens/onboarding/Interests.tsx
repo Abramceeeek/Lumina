@@ -6,7 +6,7 @@ import { fonts } from '@/design/typography';
 import { Button } from '@/components/Button';
 import { ArrowRight } from '@/components/icons';
 
-export function Interests({ onNext }: { onNext: () => void }) {
+export function Interests({ onNext }: { onNext: (selected: string[]) => void }) {
   const [selected, setSelected] = useState<string[]>([]);
   const toggle = (id: string) =>
     setSelected((prev) =>
@@ -44,7 +44,7 @@ export function Interests({ onNext }: { onNext: () => void }) {
 
           <View style={styles.footer}>
             <Text style={styles.counter} accessibilityLiveRegion="polite">{selected.length}/5 selected</Text>
-            <Button label="Continue" onPress={onNext} disabled={selected.length < 3}>
+            <Button label="Continue" onPress={() => onNext(selected)} disabled={selected.length < 3}>
               <ArrowRight />
             </Button>
           </View>
