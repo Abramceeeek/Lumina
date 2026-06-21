@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ScrollView, View, Text, StyleSheet } from 'react-native';
+import { ScrollView, View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { colors, radius, semantic } from '@/design/tokens';
 import { fonts } from '@/design/typography';
@@ -10,41 +10,65 @@ import { DifficultyBadge } from '@/components/DifficultyBadge';
 import { ArrowRight } from '@/components/icons';
 import { SAMPLE_ARTICLE } from '@/data/sample';
 import { useAppStore } from '@/store/useAppStore';
-import { resolvePersonalizer } from '@/ai/resolve';
-import type { Personalized } from '@/ai/types';
+import { resolveGenerator } from '@/ai/resolve';
+import { getPrimaryInterest } from '@/data/profile';
 
-// A2: reader with a finish-reading timer that gates the next step, plus
-// long-press-to-save highlights (RN-native stand-in for the prototype's
-// text-selection flow).
+const READ_MINUTES = 5;
+
+type Content = { title: string; topic: string; body: string[] };
+
+function todayKey(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+// A2 + generation: the daily article is generated for the user's topic at their
+// level (cached per day + difficulty), then read with a finish-timer gate and
+// long-press highlights.
 export function Article({ onFinish }: { onFinish: () => void }) {
-  const a = SAMPLE_ARTICLE;
-  const totalSecs = a.readTime * 60;
+  const difficulty = useAppStore((s) => s.difficulty);
+  const addHighlight = useAppStore((s) => s.addHighlight);
+  const dailyArticle = useAppStore((s) => s.dailyArticle);
+  const setDailyArticle = useAppStore((s) => s.setDailyArticle);
+
+  const today = todayKey();
+  const cached = dailyArticle && dailyArticle.date === today && dailyArticle.difficulty === difficulty ? dailyArticle : null;
+  const [content, setContent] = useState<Content | null>(cached ? { title: cached.title, topic: cached.topic, body: cached.body } : null);
+  const [genLoading, setGenLoading] = useState(!cached);
+
+  const totalSecs = READ_MINUTES * 60;
   const [progress, setProgress] = useState(0);
   const [timerDone, setTimerDone] = useState(false);
   const [toast, setToast] = useState(false);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const addHighlight = useAppStore((s) => s.addHighlight);
-  const difficulty = useAppStore((s) => s.difficulty);
-  const [personalized, setPersonalized] = useState<Personalized | null>(null);
-  const [pLoading, setPLoading] = useState(false);
 
-  const personalize = async () => {
-    setPLoading(true);
-    try {
-      const provider = await resolvePersonalizer();
-      const out = await provider.personalize({ title: a.subtopic, body: a.body, language: 'English', difficulty, targetMinutes: 5 });
-      setPersonalized(out);
-    } catch {
-      setPersonalized({ body: a.body, note: 'Personalization failed — check your AI key in Profile.' });
-    } finally {
-      setPLoading(false);
-    }
-  };
-
-  const displayBody = personalized?.body ?? a.body;
-
+  // Generate today's article once.
   useEffect(() => {
-    if (timerDone) return;
+    if (content) return;
+    let cancelled = false;
+    (async () => {
+      setGenLoading(true);
+      try {
+        const topic = (await getPrimaryInterest()) ?? SAMPLE_ARTICLE.topic;
+        const gen = await (await resolveGenerator()).generate({ topic, difficulty, language: 'English', targetMinutes: READ_MINUTES });
+        if (cancelled) return;
+        const c = { title: gen.title, topic: gen.topic, body: gen.body };
+        setContent(c);
+        setDailyArticle({ date: today, difficulty, ...c });
+      } catch {
+        if (!cancelled) setContent({ title: SAMPLE_ARTICLE.subtopic, topic: SAMPLE_ARTICLE.topic, body: SAMPLE_ARTICLE.body });
+      } finally {
+        if (!cancelled) setGenLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Reading timer (starts once the article is shown).
+  useEffect(() => {
+    if (genLoading || !content || timerDone) return;
     const id = setInterval(() => {
       setProgress((p) => {
         const next = p + 100 / totalSecs;
@@ -57,7 +81,7 @@ export function Article({ onFinish }: { onFinish: () => void }) {
       });
     }, 1000);
     return () => clearInterval(id);
-  }, [timerDone, totalSecs]);
+  }, [genLoading, content, timerDone, totalSecs]);
 
   useEffect(
     () => () => {
@@ -67,33 +91,50 @@ export function Article({ onFinish }: { onFinish: () => void }) {
   );
 
   const saveHighlight = (text: string) => {
-    addHighlight({ quote: text, article: a.subtopic, topic: a.topic });
+    if (!content) return;
+    addHighlight({ quote: text, article: content.title, topic: content.topic });
     setToast(true);
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(false), 2000);
   };
 
+  const header = (
+    <Header
+      right={
+        <View style={styles.headerRight}>
+          <DifficultyBadge />
+          <View style={styles.streak}>
+            <Text style={{ fontSize: 15 }}>🔥</Text>
+            <Text style={styles.streakText}>Day 1</Text>
+          </View>
+        </View>
+      }
+    />
+  );
+
+  if (genLoading || !content) {
+    return (
+      <View style={{ flex: 1 }}>
+        {header}
+        <View style={styles.loading}>
+          <ActivityIndicator color={colors.accent} />
+          <Text style={styles.loadingText}>Writing today&apos;s article…</Text>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={{ flex: 1 }}>
-      <Header
-        right={
-          <View style={styles.headerRight}>
-            <DifficultyBadge />
-            <View style={styles.streak}>
-              <Text style={{ fontSize: 15 }}>🔥</Text>
-              <Text style={styles.streakText}>Day {a.day}</Text>
-            </View>
-          </View>
-        }
-      />
+      {header}
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.article}>
           <View style={styles.meta}>
-            <Pill label={a.topic} />
-            <Text style={styles.metaText}>· {a.readTime} min read</Text>
+            <Pill label={content.topic} />
+            <Text style={styles.metaText}>· {READ_MINUTES} min read</Text>
           </View>
 
-          <Text style={styles.title}>{a.subtopic}</Text>
+          <Text style={styles.title}>{content.title}</Text>
 
           <View style={styles.timerTrack}>
             <Svg width="100%" height={3}>
@@ -106,26 +147,21 @@ export function Article({ onFinish }: { onFinish: () => void }) {
               <Rect x={0} y={0} width={`${progress}%`} height={3} rx={2} fill={timerDone ? colors.accent : 'url(#timerGrad)'} />
             </Svg>
           </View>
-          {!timerDone && (
+          {!timerDone ? (
             <Text style={styles.timerCaption}>Take your time — the next step unlocks when you&apos;re done reading.</Text>
-          )}
+          ) : null}
 
           <Text style={styles.hint}>Long-press a paragraph to save a highlight.</Text>
 
-          <View style={styles.personalizeRow}>
-            {personalized ? (
-              <View style={{ flex: 1 }}>
-                <Text style={styles.personalizeNote}>{personalized.note}</Text>
-                <Text style={styles.showOriginal} onPress={() => setPersonalized(null)} accessibilityRole="button" accessibilityLabel="Show original article">Show original</Text>
-              </View>
-            ) : (
-              <Button variant="soft" size="sm" label={pLoading ? 'Personalizing…' : '✨ Personalize for me'} onPress={pLoading ? undefined : personalize} disabled={pLoading} />
-            )}
-          </View>
-
           <View style={{ gap: 22 }}>
-            {displayBody.map((p, i) => (
-              <Text key={i} selectable onLongPress={() => saveHighlight(p)} accessibilityHint="Long-press to save this paragraph as a highlight" style={[styles.para, i === 0 ? styles.paraLead : null]}>
+            {content.body.map((p, i) => (
+              <Text
+                key={i}
+                selectable
+                onLongPress={() => saveHighlight(p)}
+                accessibilityHint="Long-press to save this paragraph as a highlight"
+                style={[styles.para, i === 0 ? styles.paraLead : null]}
+              >
                 {p}
               </Text>
             ))}
@@ -152,16 +188,18 @@ export function Article({ onFinish }: { onFinish: () => void }) {
         </View>
       </ScrollView>
 
-      {toast && (
+      {toast ? (
         <View style={styles.toast}>
           <Text style={styles.toastText}>Highlight saved ✓</Text>
         </View>
-      )}
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  loading: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 40 },
+  loadingText: { color: colors.textSec, fontSize: 14, fontFamily: fonts.regular },
   scroll: { paddingTop: 44, paddingHorizontal: 20, paddingBottom: 40 },
   article: { width: '100%', maxWidth: 680, alignSelf: 'center' },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
@@ -173,9 +211,6 @@ const styles = StyleSheet.create({
   timerTrack: { height: 3, backgroundColor: colors.border, borderRadius: 2, overflow: 'hidden', marginBottom: 8 },
   timerCaption: { fontSize: 12, color: colors.textTer, fontStyle: 'italic', fontFamily: fonts.regular },
   hint: { fontSize: 12, color: colors.textTer, fontFamily: fonts.regular, marginTop: 12, marginBottom: 16 },
-  personalizeRow: { marginBottom: 16, flexDirection: 'row', alignItems: 'flex-start' },
-  personalizeNote: { fontSize: 13, color: colors.accent, fontFamily: fonts.medium, lineHeight: 19 },
-  showOriginal: { fontSize: 13, color: colors.textTer, fontFamily: fonts.regular, marginTop: 4 },
   para: { fontSize: 18, lineHeight: 32, color: colors.textSec, fontFamily: fonts.regular },
   paraLead: { color: colors.text, fontFamily: fonts.medium },
   endRow: { flexDirection: 'row', alignItems: 'center', gap: 16, marginTop: 48 },
