@@ -30,6 +30,7 @@ export function Article({ onFinish }: { onFinish: () => void }) {
   const addHighlight = useAppStore((s) => s.addHighlight);
   const dailyArticle = useAppStore((s) => s.dailyArticle);
   const setDailyArticle = useAppStore((s) => s.setDailyArticle);
+  const nextTopic = useAppStore((s) => s.nextTopic);
 
   const today = todayKey();
   const cached = dailyArticle && dailyArticle.date === today && dailyArticle.difficulty === difficulty ? dailyArticle : null;
@@ -49,7 +50,7 @@ export function Article({ onFinish }: { onFinish: () => void }) {
     (async () => {
       setGenLoading(true);
       try {
-        const topic = (await getPrimaryInterest()) ?? SAMPLE_ARTICLE.topic;
+        const topic = nextTopic ?? (await getPrimaryInterest()) ?? SAMPLE_ARTICLE.topic;
         const gen = await (await resolveGenerator()).generate({ topic, difficulty, language: 'English', targetMinutes: READ_MINUTES });
         if (cancelled) return;
         const c = { title: gen.title, topic: gen.topic, body: gen.body };

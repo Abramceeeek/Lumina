@@ -13,6 +13,10 @@ type AppState = {
   setDifficulty: (d: Difficulty) => void;
   dailyArticle: DailyArticle | null;
   setDailyArticle: (a: DailyArticle) => void;
+  nextTopic: string | null;
+  setNextTopic: (t: string) => void;
+  completedDate: string | null;
+  setCompletedDate: (d: string) => void;
   highlights: SavedHighlight[];
   addHighlight: (h: Omit<SavedHighlight, 'id' | 'date'>) => void;
 };
@@ -29,6 +33,10 @@ export const useAppStore = create<AppState>()(
       setDifficulty: (d) => set({ difficulty: d }),
       dailyArticle: null,
       setDailyArticle: (a) => set({ dailyArticle: a }),
+      nextTopic: null,
+      setNextTopic: (t) => set({ nextTopic: t }),
+      completedDate: null,
+      setCompletedDate: (d) => set({ completedDate: d }),
       highlights: [],
       addHighlight: (h) =>
         set((s) => ({
