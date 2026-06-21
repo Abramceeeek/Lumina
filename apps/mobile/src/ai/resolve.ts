@@ -1,9 +1,9 @@
-import type { Personalizer } from './types';
+import type { Personalizer, Generator } from './types';
 import { getApiKey } from './keyStore';
 import { isSupabaseConfigured } from '@/data/supabase';
-import { mockPersonalizer } from './providers/mock';
-import { anthropicPersonalizer } from './providers/anthropic';
-import { hostedPersonalizer } from './providers/hosted';
+import { mockPersonalizer, mockGenerator } from './providers/mock';
+import { anthropicPersonalizer, anthropicGenerator } from './providers/anthropic';
+import { hostedPersonalizer, hostedGenerator } from './providers/hosted';
 
 // Resolution order (CLAUDE.md §6): BYOK key → hosted (server key) → mock demo.
 export async function resolvePersonalizer(): Promise<Personalizer> {
@@ -11,4 +11,11 @@ export async function resolvePersonalizer(): Promise<Personalizer> {
   if (key) return anthropicPersonalizer(key);
   if (isSupabaseConfigured) return hostedPersonalizer();
   return mockPersonalizer;
+}
+
+export async function resolveGenerator(): Promise<Generator> {
+  const key = await getApiKey();
+  if (key) return anthropicGenerator(key);
+  if (isSupabaseConfigured) return hostedGenerator();
+  return mockGenerator;
 }

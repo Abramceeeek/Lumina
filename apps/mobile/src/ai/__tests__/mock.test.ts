@@ -1,5 +1,5 @@
 import { describe, it, expect } from '@jest/globals';
-import { mockPersonalizer } from '../providers/mock';
+import { mockPersonalizer, mockGenerator } from '../providers/mock';
 
 describe('mockPersonalizer', () => {
   const body = ['p1', 'p2', 'p3', 'p4', 'p5'];
@@ -19,5 +19,15 @@ describe('mockPersonalizer', () => {
   it('keeps the full body for long reads', async () => {
     const long = await mockPersonalizer.personalize({ title: 't', body, language: 'English', difficulty: 'Hard', targetMinutes: 15 });
     expect(long.body).toHaveLength(body.length);
+  });
+});
+
+describe('mockGenerator', () => {
+  it('returns a topic-titled article body', async () => {
+    const out = await mockGenerator.generate({ topic: 'Finance', difficulty: 'Medium', language: 'English', targetMinutes: 5 });
+    expect(out.title).toBe('Finance');
+    expect(out.topic).toBe('Finance');
+    expect(out.body.length).toBeGreaterThan(0);
+    expect(out.body[0]).toContain('Finance');
   });
 });

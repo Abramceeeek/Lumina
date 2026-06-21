@@ -1,6 +1,6 @@
-import type { Personalizer } from '../types';
+import type { Personalizer, Generator } from '../types';
 import { supabase } from '@/data/supabase';
-import { mockPersonalizer } from './mock';
+import { mockPersonalizer, mockGenerator } from './mock';
 
 // Calls the Supabase Edge Function (server-side Claude key) when it's deployed.
 // Falls back to the offline demo if the function isn't available yet, so the
@@ -20,6 +20,26 @@ export function hostedPersonalizer(): Personalizer {
         throw new Error('Empty response');
       } catch {
         return mockPersonalizer.personalize(input);
+      }
+    },
+  };
+}
+
+export function hostedGenerator(): Generator {
+  return {
+    id: 'hosted',
+    async generate(input) {
+      try {
+        if (!supabase) throw new Error('Supabase not configured');
+        const { data, error } = await supabase.functions.invoke('personalize', { body: { ...input, mode: 'generate' } });
+        if (error) throw error;
+        const payload = data as { title?: string; body?: string[]; note?: string } | null;
+        if (payload?.body?.length) {
+          return { title: payload.title ?? input.topic, topic: input.topic, body: payload.body, note: payload.note };
+        }
+        throw new Error('Empty response');
+      } catch {
+        return mockGenerator.generate(input);
       }
     },
   };

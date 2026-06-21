@@ -27,3 +27,16 @@ export async function completeOnboarding(fieldSlugs: string[]): Promise<void> {
 
   await supabase.from('profiles').update({ onboarded: true }).eq('id', user.id);
 }
+
+// The user's first chosen interest (a field label like "Finance"), for the daily article.
+export async function getPrimaryInterest(): Promise<string | null> {
+  if (!supabase) return null;
+  const { data: userData } = await supabase.auth.getUser();
+  const user = userData.user;
+  if (!user) return null;
+  const { data: interests } = await supabase.from('user_interests').select('field_id').eq('user_id', user.id).limit(1);
+  const fieldId = interests?.[0]?.field_id;
+  if (!fieldId) return null;
+  const { data: field } = await supabase.from('fields').select('label').eq('id', fieldId).single();
+  return field?.label ?? null;
+}
