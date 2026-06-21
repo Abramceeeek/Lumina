@@ -12,6 +12,7 @@ import { SAMPLE_ARTICLE } from '@/data/sample';
 import { useAppStore } from '@/store/useAppStore';
 import { resolveGenerator } from '@/ai/resolve';
 import { getPrimaryInterest } from '@/data/profile';
+import { addHighlightRemote } from '@/data/highlights';
 
 const READ_MINUTES = 5;
 
@@ -93,6 +94,7 @@ export function Article({ onFinish }: { onFinish: () => void }) {
   const saveHighlight = (text: string) => {
     if (!content) return;
     addHighlight({ quote: text, article: content.title, topic: content.topic });
+    void addHighlightRemote({ quote: text, article: content.title, topic: content.topic });
     setToast(true);
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(false), 2000);
