@@ -8,9 +8,11 @@
     "scheme": "lumina",
     "userInterfaceStyle": "light",
     "ios": {
+      "bundleIdentifier": "com.abramceeeek.lumina",
       "icon": "./assets/expo.icon"
     },
     "android": {
+      "package": "com.abramceeeek.lumina",
       "adaptiveIcon": {
         "backgroundColor": "#E6F0EE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
