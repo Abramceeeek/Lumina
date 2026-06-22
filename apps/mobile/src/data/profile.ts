@@ -28,8 +28,8 @@ export async function completeOnboarding(fieldSlugs: string[]): Promise<void> {
   await supabase.from('profiles').update({ onboarded: true }).eq('id', user.id);
 }
 
-// The user's first chosen interest (a field label like "Finance"), for the daily article.
-export async function getPrimaryInterest(): Promise<string | null> {
+// The user's first chosen interest field (id + label), for the daily article.
+export async function getPrimaryInterestField(): Promise<{ id: string; label: string } | null> {
   if (!supabase) return null;
   const { data: userData } = await supabase.auth.getUser();
   const user = userData.user;
@@ -38,5 +38,10 @@ export async function getPrimaryInterest(): Promise<string | null> {
   const fieldId = interests?.[0]?.field_id;
   if (!fieldId) return null;
   const { data: field } = await supabase.from('fields').select('label').eq('id', fieldId).single();
-  return field?.label ?? null;
+  return { id: fieldId, label: field?.label ?? '' };
+}
+
+// The user's first chosen interest label (e.g. "Finance"), for the daily article.
+export async function getPrimaryInterest(): Promise<string | null> {
+  return (await getPrimaryInterestField())?.label ?? null;
 }
