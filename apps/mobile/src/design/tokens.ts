@@ -59,27 +59,7 @@ export const font = {
   readWidths: [580, 680, 780] as const,
 };
 
-// 12 interest fields (mirrors KF_TOPICS + supabase seed).
-export const TOPICS = [
-  { id: 'finance', label: 'Finance', emoji: '📈', color: '#4A7C6F' },
-  { id: 'technology', label: 'Technology', emoji: '💻', color: '#5B7BA8' },
-  { id: 'philosophy', label: 'Philosophy', emoji: '🧠', color: '#8A6BA8' },
-  { id: 'science', label: 'Science', emoji: '🔬', color: '#5B98A8' },
-  { id: 'history', label: 'History', emoji: '📜', color: '#A88B5B' },
-  { id: 'psychology', label: 'Psychology', emoji: '🧩', color: '#A85B6B' },
-  { id: 'literature', label: 'Literature', emoji: '📖', color: '#6B8A5B' },
-  { id: 'economics', label: 'Economics', emoji: '🏛️', color: '#8A7B5B' },
-  { id: 'art', label: 'Art & Design', emoji: '🎨', color: '#8A5B7B' },
-  { id: 'health', label: 'Health', emoji: '🌿', color: '#5B8A6B' },
-  { id: 'politics', label: 'Politics', emoji: '⚖️', color: '#7B5B8A' },
-  { id: 'astronomy', label: 'Astronomy', emoji: '🌌', color: '#5B6B8A' },
-] as const;
-
-// Dual-ladder levels (CLAUDE.md §7).
-export const CEFR = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'] as const;
-export type Cefr = (typeof CEFR)[number];
-
-export const FIELD_LEVELS = ['Intro', 'Beginner', 'Intermediate', 'Advanced', 'Professional'] as const;
-export type FieldLevel = 1 | 2 | 3 | 4 | 5;
-
-export type Difficulty = keyof typeof difficultyColors;
+// Field taxonomy + dual-ladder levels now live in @lumina/shared (single source of
+// truth for client + server); re-exported so `@/design/tokens` imports keep working.
+export { TOPICS, CEFR, FIELD_LEVELS } from '@lumina/shared';
+export type { Topic, TopicId, Cefr, FieldLevel, Difficulty, Focus } from '@lumina/shared';

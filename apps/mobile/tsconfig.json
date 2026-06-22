@@ -8,6 +8,12 @@
       ],
       "@/assets/*": [
         "./assets/*"
+      ],
+      "@lumina/shared": [
+        "../../packages/shared/src/index.ts"
+      ],
+      "@lumina/shared/*": [
+        "../../packages/shared/src/*"
       ]
     }
   },
