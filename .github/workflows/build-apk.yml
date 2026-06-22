@@ -1,0 +1,63 @@
+name: Build APK
+
+# Builds a standalone Android APK on GitHub's servers (no Expo cloud, no local
+# toolchain) and attaches it to a Release for direct download onto a phone.
+# Run it manually: Actions tab -> Build APK -> Run workflow.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: apps/mobile/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate native android project
+        run: npx expo prebuild -p android --no-install
+
+      - name: Build release APK
+        working-directory: apps/mobile/android
+        run: ./gradlew assembleRelease --no-daemon
+        env:
+          # EXPO_PUBLIC_* are inlined into the JS bundle during this step.
+          # Set them as repo secrets so accounts/cloud work; omit for local-only.
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+
+      - name: Collect APK
+        run: cp android/app/build/outputs/apk/release/app-release.apk lumina.apk
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lumina-apk
+          path: apps/mobile/lumina.apk
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-${{ github.run_number }}
+          name: Lumina APK (build ${{ github.run_number }})
+          body: Standalone debug-signed APK. Download lumina.apk below and install on Android.
+          files: apps/mobile/lumina.apk
