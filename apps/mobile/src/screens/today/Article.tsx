@@ -11,7 +11,8 @@ import { ArrowRight } from '@/components/icons';
 import { SAMPLE_ARTICLE } from '@/data/sample';
 import { useAppStore } from '@/store/useAppStore';
 import { resolveGenerator } from '@/ai/resolve';
-import { getPrimaryInterest } from '@/data/profile';
+import { getPrimaryInterestField } from '@/data/profile';
+import { saveGeneratedArticle, recordRead } from '@/data/articles';
 import { addHighlightRemote } from '@/data/highlights';
 
 const READ_MINUTES = 5;
@@ -36,6 +37,7 @@ export function Article({ onFinish }: { onFinish: () => void }) {
   const cached = dailyArticle && dailyArticle.date === today && dailyArticle.difficulty === difficulty ? dailyArticle : null;
   const [content, setContent] = useState<Content | null>(cached ? { title: cached.title, topic: cached.topic, body: cached.body } : null);
   const [genLoading, setGenLoading] = useState(!cached);
+  const [articleId, setArticleId] = useState<string | undefined>(cached?.articleId);
 
   const totalSecs = READ_MINUTES * 60;
   const [progress, setProgress] = useState(0);
@@ -50,12 +52,16 @@ export function Article({ onFinish }: { onFinish: () => void }) {
     (async () => {
       setGenLoading(true);
       try {
-        const topic = nextTopic ?? (await getPrimaryInterest()) ?? SAMPLE_ARTICLE.topic;
+        const field = await getPrimaryInterestField();
+        const topic = nextTopic ?? field?.label ?? SAMPLE_ARTICLE.topic;
         const gen = await (await resolveGenerator()).generate({ topic, difficulty, language: 'English', targetMinutes: READ_MINUTES });
         if (cancelled) return;
         const c = { title: gen.title, topic: gen.topic, body: gen.body };
+        const id = field ? ((await saveGeneratedArticle({ fieldId: field.id, title: c.title, body: c.body })) ?? undefined) : undefined;
+        if (cancelled) return;
         setContent(c);
-        setDailyArticle({ date: today, difficulty, ...c });
+        setArticleId(id);
+        setDailyArticle({ date: today, difficulty, ...c, articleId: id });
       } catch {
         if (!cancelled) setContent({ title: SAMPLE_ARTICLE.subtopic, topic: SAMPLE_ARTICLE.topic, body: SAMPLE_ARTICLE.body });
       } finally {
@@ -84,6 +90,15 @@ export function Article({ onFinish }: { onFinish: () => void }) {
     }, 1000);
     return () => clearInterval(id);
   }, [genLoading, content, timerDone, totalSecs]);
+
+  // Record the read once the timer completes (one row per article, this session).
+  const readRecorded = useRef(false);
+  useEffect(() => {
+    if (timerDone && articleId && !readRecorded.current) {
+      readRecorded.current = true;
+      void recordRead(articleId);
+    }
+  }, [timerDone, articleId]);
 
   useEffect(
     () => () => {

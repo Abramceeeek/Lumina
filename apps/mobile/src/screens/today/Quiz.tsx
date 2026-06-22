@@ -8,8 +8,11 @@ import { Button } from '@/components/Button';
 import { ArrowRight } from '@/components/icons';
 import { SAMPLE_QUIZ } from '@/data/sample';
 import { mcCount, mcScore, allMcAnswered } from '@/lib/quiz';
+import { useAppStore } from '@/store/useAppStore';
+import { saveQuizResponse } from '@/data/quizResponses';
 
 export function Quiz({ onFinish }: { onFinish: () => void }) {
+  const articleId = useAppStore((s) => s.dailyArticle?.articleId);
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [openText, setOpenText] = useState('');
   const [submitted, setSubmitted] = useState(false);
@@ -23,6 +26,7 @@ export function Quiz({ onFinish }: { onFinish: () => void }) {
 
   const submit = () => {
     setSubmitted(true);
+    void saveQuizResponse(articleId, { answers, mcScore: correct, reflection: openText });
     finishTimer.current = setTimeout(onFinish, 1200);
   };
 
