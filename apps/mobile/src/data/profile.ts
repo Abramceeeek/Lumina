@@ -59,3 +59,13 @@ export async function getPrimaryInterestField(): Promise<{ id: string; label: st
 export async function getPrimaryInterest(): Promise<string | null> {
   return (await getPrimaryInterestField())?.label ?? null;
 }
+
+// Retention score (0..100), recomputed from spaced-repetition recall performance.
+export async function getRetention(): Promise<number> {
+  if (!supabase) return 0;
+  const { data: userData } = await supabase.auth.getUser();
+  const user = userData.user;
+  if (!user) return 0;
+  const { data } = await supabase.from('profiles').select('retention_score').eq('id', user.id).maybeSingle();
+  return Number(data?.retention_score ?? 0);
+}
