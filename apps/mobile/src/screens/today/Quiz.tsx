@@ -11,6 +11,7 @@ import { mcCount, mcScore, allMcAnswered } from '@/lib/quiz';
 import { useAppStore } from '@/store/useAppStore';
 import { saveQuizResponse } from '@/data/quizResponses';
 import { advanceLadder } from '@/data/ladder';
+import { scheduleRecall } from '@/data/spacedrep';
 
 export function Quiz({ onFinish }: { onFinish: () => void }) {
   const articleId = useAppStore((s) => s.dailyArticle?.articleId);
@@ -34,6 +35,8 @@ export function Quiz({ onFinish }: { onFinish: () => void }) {
     void saveQuizResponse(articleId, { answers, mcScore: correct, reflection: openText });
     // A passing score (all MC correct) advances the ladder this article targeted.
     if (focus) void advanceLadder({ focus, fieldId, passed: total > 0 && correct === total });
+    // Schedule this article to resurface for spaced-repetition recall.
+    void scheduleRecall(articleId);
     finishTimer.current = setTimeout(onFinish, 1200);
   };
 

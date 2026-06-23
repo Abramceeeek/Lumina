@@ -10,6 +10,7 @@ import { getApiKey, setApiKey, clearApiKey } from '@/ai/keyStore';
 import { signOut } from '@/data/auth';
 import { isSupabaseConfigured } from '@/data/supabase';
 import { getLadders } from '@/data/ladder';
+import { getRetention } from '@/data/profile';
 
 const STATS = [
   { label: 'Total articles', value: '12' },
@@ -23,9 +24,11 @@ export function Profile() {
   const [apiKeyInput, setApiKeyInput] = useState('');
   const [savedKey, setSavedKey] = useState<string | null>(null);
   const [ladders, setLadders] = useState<{ cefr: string; fields: { label: string; level: number }[] } | null>(null);
+  const [retention, setRetention] = useState(0);
   useEffect(() => {
     getApiKey().then(setSavedKey);
     getLadders().then(setLadders);
+    getRetention().then(setRetention);
   }, []);
   const saveKey = async () => {
     const v = apiKeyInput.trim();
@@ -38,7 +41,6 @@ export function Profile() {
     await clearApiKey();
     setSavedKey(null);
   };
-  const retention = 74;
   const r = 44;
   const circ = 2 * Math.PI * r;
   const dash = (retention / 100) * circ;
