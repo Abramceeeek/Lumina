@@ -1,8 +1,8 @@
-name: Ingest news
+name: News pipeline
 
-# Runs the Track B ingest pipeline: pulls fresh headlines into raw_items.
-# Daily on a schedule, plus on demand. Uses the service-role key (secret) — it
-# bypasses RLS and must never be committed.
+# Runs the Track B pipeline: ingest fresh headlines into raw_items, then
+# synthesize one neutral brief per field into stories. Daily + on demand.
+# Uses the service-role key + Anthropic key (secrets) — never committed.
 
 on:
   workflow_dispatch:
@@ -30,3 +30,8 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      - run: npm run synthesize
+        env:
+          SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
