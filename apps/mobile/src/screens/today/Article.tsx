@@ -34,6 +34,8 @@ export function Article({ onFinish }: { onFinish: () => void }) {
   const dailyArticle = useAppStore((s) => s.dailyArticle);
   const setDailyArticle = useAppStore((s) => s.setDailyArticle);
   const nextTopic = useAppStore((s) => s.nextTopic);
+  const fontSize = useAppStore((s) => s.fontSize);
+  const readWidth = useAppStore((s) => s.readWidth);
 
   const today = todayKey();
   const cached = dailyArticle && dailyArticle.date === today && dailyArticle.difficulty === difficulty ? dailyArticle : null;
@@ -180,7 +182,7 @@ export function Article({ onFinish }: { onFinish: () => void }) {
     <View style={{ flex: 1 }}>
       {header}
       <ScrollView contentContainerStyle={styles.scroll}>
-        <View style={styles.article}>
+        <View style={[styles.article, { maxWidth: readWidth }]}>
           <View style={styles.meta}>
             <Pill label={content.topic} />
             <Text style={styles.metaText}>· {READ_MINUTES} min read</Text>
@@ -212,7 +214,7 @@ export function Article({ onFinish }: { onFinish: () => void }) {
                 selectable
                 onLongPress={() => saveHighlight(p)}
                 accessibilityHint="Long-press to save this paragraph as a highlight"
-                style={[styles.para, i === 0 ? styles.paraLead : null]}
+                style={[styles.para, { fontSize, lineHeight: Math.round(fontSize * 1.78) }, i === 0 ? styles.paraLead : null]}
               >
                 {p}
               </Text>

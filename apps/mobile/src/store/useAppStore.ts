@@ -24,6 +24,10 @@ type AppState = {
   setOnboarded: (v: boolean) => void;
   difficulty: Difficulty;
   setDifficulty: (d: Difficulty) => void;
+  fontSize: number;
+  setFontSize: (n: number) => void;
+  readWidth: number;
+  setReadWidth: (n: number) => void;
   dailyArticle: DailyArticle | null;
   setDailyArticle: (a: DailyArticle) => void;
   nextTopic: string | null;
@@ -44,6 +48,10 @@ export const useAppStore = create<AppState>()(
       setOnboarded: (v) => set({ onboarded: v }),
       difficulty: 'Medium',
       setDifficulty: (d) => set({ difficulty: d }),
+      fontSize: 18,
+      setFontSize: (n) => set({ fontSize: n }),
+      readWidth: 680,
+      setReadWidth: (n) => set({ readWidth: n }),
       dailyArticle: null,
       setDailyArticle: (a) => set({ dailyArticle: a }),
       nextTopic: null,

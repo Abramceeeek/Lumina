@@ -1,7 +1,7 @@
 import { ReactNode, useEffect, useState } from 'react';
-import { ScrollView, View, Text, Switch, StyleSheet } from 'react-native';
+import { ScrollView, View, Text, Pressable, StyleSheet } from 'react-native';
 import Svg, { Circle, Text as SvgText } from 'react-native-svg';
-import { colors, radius, FIELD_LEVELS } from '@/design/tokens';
+import { colors, radius, semantic, FIELD_LEVELS } from '@/design/tokens';
 import { fonts } from '@/design/typography';
 import { Header } from '@/components/Header';
 import { Button } from '@/components/Button';
@@ -11,6 +11,8 @@ import { signOut } from '@/data/auth';
 import { isSupabaseConfigured } from '@/data/supabase';
 import { getLadders } from '@/data/ladder';
 import { getRetention } from '@/data/profile';
+import { saveSettings } from '@/data/settings';
+import { useAppStore } from '@/store/useAppStore';
 
 const STATS = [
   { label: 'Total articles', value: '12' },
@@ -20,7 +22,10 @@ const STATS = [
 ];
 
 export function Profile() {
-  const [notifs, setNotifs] = useState(true);
+  const fontSize = useAppStore((s) => s.fontSize);
+  const readWidth = useAppStore((s) => s.readWidth);
+  const setFontSize = useAppStore((s) => s.setFontSize);
+  const setReadWidth = useAppStore((s) => s.setReadWidth);
   const [apiKeyInput, setApiKeyInput] = useState('');
   const [savedKey, setSavedKey] = useState<string | null>(null);
   const [ladders, setLadders] = useState<{ cefr: string; fields: { label: string; level: number }[] } | null>(null);
@@ -114,14 +119,28 @@ export function Profile() {
 
           <Text style={styles.h3}>Settings</Text>
           <View style={styles.settings}>
-            <SettingRow label="Daily reminder">
-              <Text style={styles.valAccent}>08:00</Text>
-            </SettingRow>
             <SettingRow label="Language">
               <Text style={styles.val}>English</Text>
             </SettingRow>
-            <SettingRow label="Notifications" last>
-              <Switch value={notifs} onValueChange={setNotifs} accessibilityLabel="Notifications" trackColor={{ true: colors.accent, false: colors.border }} thumbColor="#fff" />
+            <SettingRow label="Text size">
+              <Segmented
+                options={[{ label: 'S', value: 16 }, { label: 'M', value: 18 }, { label: 'L', value: 20 }]}
+                value={fontSize}
+                onChange={(v) => {
+                  setFontSize(v);
+                  void saveSettings({ fontSize: v });
+                }}
+              />
+            </SettingRow>
+            <SettingRow label="Reading width" last>
+              <Segmented
+                options={[{ label: 'Narrow', value: 580 }, { label: 'Medium', value: 680 }, { label: 'Wide', value: 780 }]}
+                value={readWidth}
+                onChange={(v) => {
+                  setReadWidth(v);
+                  void saveSettings({ readWidth: v });
+                }}
+              />
             </SettingRow>
           </View>
 
@@ -158,6 +177,28 @@ function SettingRow({ label, children, last }: { label: string; children: ReactN
   );
 }
 
+function Segmented({ options, value, onChange }: { options: { label: string; value: number }[]; value: number; onChange: (v: number) => void }) {
+  return (
+    <View style={styles.seg}>
+      {options.map((o) => {
+        const active = o.value === value;
+        return (
+          <Pressable
+            key={o.value}
+            onPress={() => onChange(o.value)}
+            accessibilityRole="radio"
+            accessibilityState={{ checked: active }}
+            accessibilityLabel={o.label}
+            style={[styles.segItem, active ? styles.segItemActive : null]}
+          >
+            <Text style={[styles.segText, active ? styles.segTextActive : null]}>{o.label}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   scroll: { paddingTop: 24, paddingHorizontal: 20, paddingBottom: 80 },
   wrap: { width: '100%', maxWidth: 540, alignSelf: 'center' },
@@ -182,4 +223,9 @@ const styles = StyleSheet.create({
   rowLabel: { fontSize: 14, color: colors.text, fontFamily: fonts.regular },
   val: { fontSize: 14, color: colors.textSec, fontFamily: fonts.regular },
   valAccent: { fontSize: 14, color: colors.accent, fontFamily: fonts.medium },
+  seg: { flexDirection: 'row', gap: 4, backgroundColor: semantic.surfaceSubtle, borderRadius: radius.sm, padding: 3 },
+  segItem: { paddingVertical: 5, paddingHorizontal: 12, borderRadius: radius.sm - 2 },
+  segItemActive: { backgroundColor: colors.accent },
+  segText: { fontSize: 13, color: colors.textSec, fontFamily: fonts.medium },
+  segTextActive: { color: '#fff' },
 });

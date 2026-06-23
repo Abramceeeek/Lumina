@@ -16,6 +16,7 @@ import { useAppStore } from '@/store/useAppStore';
 import { isSupabaseConfigured } from '@/data/supabase';
 import { useSession } from '@/data/auth';
 import { getOnboarded, completeOnboarding } from '@/data/profile';
+import { getSettings } from '@/data/settings';
 
 function Splash() {
   return (
@@ -27,6 +28,14 @@ function Splash() {
 
 function MainApp() {
   const [tab, setTab] = useState<TabId>('today');
+  const setFontSize = useAppStore((s) => s.setFontSize);
+  const setReadWidth = useAppStore((s) => s.setReadWidth);
+  useEffect(() => {
+    getSettings().then((s) => {
+      setFontSize(s.fontSize);
+      setReadWidth(s.readWidth);
+    });
+  }, [setFontSize, setReadWidth]);
   return (
     <SafeAreaView edges={['top']} style={styles.root}>
       <View style={styles.content}>
