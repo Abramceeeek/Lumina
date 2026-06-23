@@ -1,0 +1,79 @@
+import { db } from './db.js';
+
+// Ingest from GDELT's free DOC 2.0 API. We pull only headlines + metadata (never
+// full article bodies), bucket-querying by field label, and store de-duplicated
+// rows in raw_items. Synthesis (Phase 7b) turns clusters of these into neutral
+// briefs; this step never republishes source copy.
+
+const GDELT = 'https://api.gdeltproject.org/api/v2/doc/doc';
+
+type GdeltArticle = { url?: string; title?: string; seendate?: string; domain?: string };
+
+async function ensureSource(): Promise<string> {
+  const { data: existing } = await db.from('sources').select('id').eq('kind', 'gdelt').maybeSingle();
+  if (existing?.id) return existing.id as string;
+  const { data } = await db.from('sources').insert({ name: 'GDELT', kind: 'gdelt', terms_ok: true }).select('id').single();
+  return data!.id as string;
+}
+
+async function fetchGdelt(query: string): Promise<GdeltArticle[]> {
+  const u = new URL(GDELT);
+  u.searchParams.set('query', `${query} sourcelang:english`);
+  u.searchParams.set('mode', 'ArtList');
+  u.searchParams.set('format', 'json');
+  u.searchParams.set('maxrecords', '25');
+  u.searchParams.set('timespan', '1d');
+  u.searchParams.set('sort', 'HybridRel');
+  const res = await fetch(u, { headers: { 'user-agent': 'Lumina/0.1 (news synthesis)' } });
+  if (!res.ok) return [];
+  const data = (await res.json().catch(() => null)) as { articles?: GdeltArticle[] } | null;
+  return data?.articles ?? [];
+}
+
+// GDELT "seendate" is "YYYYMMDDTHHMMSSZ".
+function parseSeendate(s?: string): string | null {
+  if (!s || s.length < 15) return null;
+  const iso = `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}T${s.slice(9, 11)}:${s.slice(11, 13)}:${s.slice(13, 15)}Z`;
+  const t = Date.parse(iso);
+  return Number.isNaN(t) ? null : new Date(t).toISOString();
+}
+
+export async function ingest(): Promise<{ fetched: number; inserted: number }> {
+  const sourceId = await ensureSource();
+  const { data: fields } = await db.from('fields').select('label');
+  const queries = (fields ?? []).map((f) => f.label as string);
+
+  let fetched = 0;
+  const seen = new Set<string>();
+  const rows: Record<string, unknown>[] = [];
+
+  for (const q of queries) {
+    const arts = await fetchGdelt(q);
+    fetched += arts.length;
+    for (const a of arts) {
+      if (!a.url || !a.title || seen.has(a.url)) continue;
+      seen.add(a.url);
+      rows.push({
+        source_id: sourceId,
+        external_id: a.url,
+        title: a.title,
+        url: a.url,
+        published_at: parseSeendate(a.seendate),
+        lang: 'en',
+        raw: { domain: a.domain ?? null, query: q },
+      });
+    }
+  }
+
+  if (!rows.length) return { fetched, inserted: 0 };
+  const { data, error } = await db
+    .from('raw_items')
+    .upsert(rows, { onConflict: 'external_id', ignoreDuplicates: true })
+    .select('id');
+  if (error) {
+    console.error('raw_items upsert failed:', error.message);
+    return { fetched, inserted: 0 };
+  }
+  await db.from('sources').update({ last_run_at: new Date().toISOString() }).eq('id', sourceId);
+  return { fetched, inserted: data?.length ?? 0 };
+}
