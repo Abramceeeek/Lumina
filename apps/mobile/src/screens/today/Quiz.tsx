@@ -10,9 +10,12 @@ import { SAMPLE_QUIZ } from '@/data/sample';
 import { mcCount, mcScore, allMcAnswered } from '@/lib/quiz';
 import { useAppStore } from '@/store/useAppStore';
 import { saveQuizResponse } from '@/data/quizResponses';
+import { advanceLadder } from '@/data/ladder';
 
 export function Quiz({ onFinish }: { onFinish: () => void }) {
   const articleId = useAppStore((s) => s.dailyArticle?.articleId);
+  const focus = useAppStore((s) => s.dailyArticle?.focus);
+  const fieldId = useAppStore((s) => s.dailyArticle?.fieldId);
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [openText, setOpenText] = useState('');
   const [submitted, setSubmitted] = useState(false);
@@ -27,6 +30,8 @@ export function Quiz({ onFinish }: { onFinish: () => void }) {
   const submit = () => {
     setSubmitted(true);
     void saveQuizResponse(articleId, { answers, mcScore: correct, reflection: openText });
+    // A passing score (all MC correct) advances the ladder this article targeted.
+    if (focus) void advanceLadder({ focus, fieldId, passed: total > 0 && correct === total });
     finishTimer.current = setTimeout(onFinish, 1200);
   };
 

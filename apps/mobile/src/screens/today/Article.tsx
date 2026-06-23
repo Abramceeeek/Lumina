@@ -13,6 +13,7 @@ import { useAppStore } from '@/store/useAppStore';
 import { resolveGenerator } from '@/ai/resolve';
 import { getPrimaryInterestField } from '@/data/profile';
 import { saveGeneratedArticle, recordRead } from '@/data/articles';
+import { nextFocus, getFieldLevels } from '@/data/ladder';
 import { addHighlightRemote } from '@/data/highlights';
 
 const READ_MINUTES = 5;
@@ -53,15 +54,25 @@ export function Article({ onFinish }: { onFinish: () => void }) {
       setGenLoading(true);
       try {
         const field = await getPrimaryInterestField();
+        const focus = await nextFocus();
+        const levels = field ? await getFieldLevels(field.id) : { cefr: 'A1' as const, fieldLevel: 1 as const };
         const topic = nextTopic ?? field?.label ?? SAMPLE_ARTICLE.topic;
-        const gen = await (await resolveGenerator()).generate({ topic, difficulty, language: 'English', targetMinutes: READ_MINUTES });
+        const gen = await (await resolveGenerator()).generate({
+          topic,
+          difficulty,
+          language: 'English',
+          targetMinutes: READ_MINUTES,
+          languageLevel: levels.cefr,
+          fieldLevel: levels.fieldLevel,
+          focus,
+        });
         if (cancelled) return;
         const c = { title: gen.title, topic: gen.topic, body: gen.body };
-        const id = field ? ((await saveGeneratedArticle({ fieldId: field.id, title: c.title, body: c.body })) ?? undefined) : undefined;
+        const id = field ? ((await saveGeneratedArticle({ fieldId: field.id, title: c.title, body: c.body, focus })) ?? undefined) : undefined;
         if (cancelled) return;
         setContent(c);
         setArticleId(id);
-        setDailyArticle({ date: today, difficulty, ...c, articleId: id });
+        setDailyArticle({ date: today, difficulty, ...c, articleId: id, focus, fieldId: field?.id });
       } catch {
         if (!cancelled) setContent({ title: SAMPLE_ARTICLE.subtopic, topic: SAMPLE_ARTICLE.topic, body: SAMPLE_ARTICLE.body });
       } finally {

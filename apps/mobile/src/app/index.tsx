@@ -59,7 +59,7 @@ function CloudRoot() {
       <Onboarding
         onDone={async ({ fields, difficulty }) => {
           setDifficulty(difficulty);
-          await completeOnboarding(fields);
+          await completeOnboarding(fields, difficulty);
           setOnboarded(true);
         }}
       />

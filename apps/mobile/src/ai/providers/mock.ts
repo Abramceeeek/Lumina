@@ -15,7 +15,7 @@ export const mockPersonalizer: Personalizer = {
 
 export const mockGenerator: Generator = {
   id: 'mock',
-  async generate({ topic, difficulty }) {
+  async generate({ topic, difficulty, focus }) {
     return {
       title: topic,
       topic,
@@ -23,7 +23,7 @@ export const mockGenerator: Generator = {
         `This is a demo article about ${topic}. Lumina would normally generate a fresh ${difficulty}-level article here, written just for you.`,
         `Add your Claude API key in Profile — or deploy the hosted AI function — and each day's reading becomes a real, AI-written piece about the topics you chose.`,
       ],
-      note: 'Demo article — add a Claude key (Profile) for real generation.',
+      note: `Demo article${focus ? ` (${focus} focus)` : ''} — add a Claude key (Profile) for real generation.`,
     };
   },
 };

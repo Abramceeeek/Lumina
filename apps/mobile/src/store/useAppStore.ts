@@ -1,10 +1,10 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { Difficulty } from '@/design/tokens';
+import type { Difficulty, Focus } from '@/design/tokens';
 
 export type SavedHighlight = { id: string; quote: string; article: string; topic: string; date: string };
-export type DailyArticle = { date: string; topic: string; difficulty: Difficulty; title: string; body: string[]; articleId?: string };
+export type DailyArticle = { date: string; topic: string; difficulty: Difficulty; title: string; body: string[]; articleId?: string; focus?: Focus; fieldId?: string };
 
 type AppState = {
   onboarded: boolean;

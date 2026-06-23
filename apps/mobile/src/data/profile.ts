@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { type Difficulty, difficultyToLevels } from '@lumina/shared';
 
 // Whether the signed-in user has finished onboarding (interests + difficulty).
 export async function getOnboarded(): Promise<boolean> {
@@ -10,21 +11,34 @@ export async function getOnboarded(): Promise<boolean> {
   return data?.onboarded ?? false;
 }
 
-// Persist chosen interest fields + mark onboarding complete.
-export async function completeOnboarding(fieldSlugs: string[]): Promise<void> {
+// Persist chosen interest fields, seed both ladders from the comfort choice, and
+// mark onboarding complete.
+export async function completeOnboarding(fieldSlugs: string[], difficulty: Difficulty = 'Medium'): Promise<void> {
   if (!supabase) return;
   const { data: userData } = await supabase.auth.getUser();
   const user = userData.user;
   if (!user) return;
 
+  const { cefr, fieldLevel } = difficultyToLevels(difficulty);
+
   if (fieldSlugs.length) {
     const { data: fields } = await supabase.from('fields').select('id, slug').in('slug', fieldSlugs);
-    const rows = (fields ?? []).map((f) => ({ user_id: user.id, field_id: f.id }));
-    if (rows.length) {
-      await supabase.from('user_interests').upsert(rows, { onConflict: 'user_id,field_id' });
+    const list = fields ?? [];
+    if (list.length) {
+      await supabase.from('user_interests').upsert(
+        list.map((f) => ({ user_id: user.id, field_id: f.id })),
+        { onConflict: 'user_id,field_id' },
+      );
+      await supabase.from('user_field_levels').upsert(
+        list.map((f) => ({ user_id: user.id, field_id: f.id, level: fieldLevel })),
+        { onConflict: 'user_id,field_id' },
+      );
     }
   }
 
+  await supabase
+    .from('user_language_levels')
+    .upsert({ user_id: user.id, language: 'en', cefr }, { onConflict: 'user_id,language' });
   await supabase.from('profiles').update({ onboarded: true }).eq('id', user.id);
 }
 

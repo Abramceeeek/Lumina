@@ -22,17 +22,19 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
 
   try {
-    const { title, body, topic, language, difficulty, targetMinutes, mode } = await req.json();
+    const { title, body, topic, language, difficulty, targetMinutes, mode, languageLevel, fieldLevel, focus } = await req.json();
     const apiKey = Deno.env.get('ANTHROPIC_API_KEY');
     if (!apiKey) return json({ error: 'Server AI key not configured' }, 500);
 
     const hasBody = Array.isArray(body) && body.length > 0;
     const generate = mode === 'generate' || (topic && !hasBody);
+    const focusInstr = focusLine(focus, languageLevel, fieldLevel);
 
     const prompt = generate
-      ? `Write an engaging, factual ~${(targetMinutes ?? 5) >= 15 ? 900 : 500}-word article for a ${difficulty}-level ${language} learner about: ${topic}. Adjust vocabulary and sentence complexity to the level. Make it genuinely interesting and self-contained. Respond with ONLY a JSON object: {"title": string, "body": string[]} where "body" is an array of paragraph strings. No markdown fences, no preamble.`
+      ? `Write an engaging, factual ~${(targetMinutes ?? 5) >= 15 ? 900 : 500}-word article for a ${difficulty}-level ${language} learner about: ${topic}. ${focusInstr} Adjust vocabulary and sentence complexity appropriately. Make it genuinely interesting and self-contained. Respond with ONLY a JSON object: {"title": string, "body": string[]} where "body" is an array of paragraph strings. No markdown fences, no preamble.`
       : `You are helping someone learn ${language} by reading about a topic they care about.
 Rewrite the article below for a "${difficulty}" reading level, about ${targetMinutes} minutes long.
+${focusInstr}
 Keep the meaning and key facts; adjust vocabulary and sentence complexity to the level.
 Return ONLY the rewritten article as plain paragraphs separated by blank lines — no preamble, no title.
 
@@ -82,6 +84,17 @@ function paragraphs(text: string): string[] {
     .split(/\n\n+/)
     .map((p) => p.trim())
     .filter(Boolean);
+}
+
+// Alternating-focus instruction (CLAUDE.md §7): push one ladder, hold the other.
+function focusLine(focus?: string, languageLevel?: string, fieldLevel?: number): string {
+  if (focus === 'language') {
+    return `Focus on LANGUAGE: keep the subject approachable, but deliberately stretch vocabulary and sentence structure toward CEFR ${languageLevel ?? 'A2'}.`;
+  }
+  if (focus === 'field') {
+    return `Focus on FIELD: keep the language simple and familiar, but go deeper into the subject — introduce and explain more specialized concepts (depth ${fieldLevel ?? 2} of 5).`;
+  }
+  return '';
 }
 
 function json(payload: unknown, status = 200) {
