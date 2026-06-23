@@ -6,6 +6,7 @@
   "scripts": {
     "ingest": "tsx src/run-ingest.ts",
     "synthesize": "tsx src/run-synthesize.ts",
+    "baseline": "tsx src/run-baseline.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

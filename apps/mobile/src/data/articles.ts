@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { sanitizeQuiz, sanitizeVocab, sanitizeBranches } from '@/ai/sanitize';
 import type { Focus, QuizQuestion, VocabItem, BranchOption } from '@lumina/shared';
 
 // Persistence for the daily loop (Phase 1). The client generates an article, then
@@ -41,6 +42,41 @@ export async function saveGeneratedArticle(a: PersistArticleInput): Promise<stri
     .single();
   if (error) return null;
   return data?.id ?? null;
+}
+
+export type Baseline = {
+  id: string;
+  title: string;
+  body: string[];
+  quiz?: QuizQuestion[];
+  vocabulary?: VocabItem[];
+  branches?: BranchOption[];
+  focus?: Focus;
+};
+
+// The latest server-synthesized baseline article for a field (author_id null),
+// for the client to personalize (sync point S2). Null if the server hasn't served
+// one yet — caller falls back to on-device generation.
+export async function getTodaysBaseline(fieldId: string | null | undefined): Promise<Baseline | null> {
+  if (!supabase || !fieldId) return null;
+  const { data } = await supabase
+    .from('articles')
+    .select('id, title, body, quiz_questions, vocabulary, branches_text, focus')
+    .is('author_id', null)
+    .eq('field_id', fieldId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!data) return null;
+  return {
+    id: String(data.id),
+    title: String(data.title),
+    body: Array.isArray(data.body) ? (data.body as unknown[]).map(String) : [],
+    quiz: sanitizeQuiz(data.quiz_questions),
+    vocabulary: sanitizeVocab(data.vocabulary),
+    branches: sanitizeBranches(data.branches_text),
+    focus: (data.focus as Focus) ?? undefined,
+  };
 }
 
 // Record that the user read an article (one row per read).

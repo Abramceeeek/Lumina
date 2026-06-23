@@ -10,9 +10,9 @@ import { DifficultyBadge } from '@/components/DifficultyBadge';
 import { ArrowRight } from '@/components/icons';
 import { SAMPLE_ARTICLE } from '@/data/sample';
 import { useAppStore } from '@/store/useAppStore';
-import { resolveGenerator } from '@/ai/resolve';
+import { resolveGenerator, resolvePersonalizer } from '@/ai/resolve';
 import { getPrimaryInterestField } from '@/data/profile';
-import { saveGeneratedArticle, recordRead } from '@/data/articles';
+import { saveGeneratedArticle, recordRead, getTodaysBaseline } from '@/data/articles';
 import { nextFocus, getFieldLevels } from '@/data/ladder';
 import type { VocabItem } from '@lumina/shared';
 import { addHighlightRemote } from '@/data/highlights';
@@ -60,44 +60,57 @@ export function Article({ onFinish }: { onFinish: () => void }) {
         const field = await getPrimaryInterestField();
         const focus = await nextFocus();
         const levels = field ? await getFieldLevels(field.id) : { cefr: 'A1' as const, fieldLevel: 1 as const };
-        const topic = nextTopic ?? field?.label ?? SAMPLE_ARTICLE.topic;
-        const gen = await (await resolveGenerator()).generate({
-          topic,
-          difficulty,
-          language: 'English',
-          targetMinutes: READ_MINUTES,
-          languageLevel: levels.cefr,
-          fieldLevel: levels.fieldLevel,
-          focus,
-        });
-        if (cancelled) return;
-        const c = { title: gen.title, topic: gen.topic, body: gen.body };
-        const id = field
-          ? ((await saveGeneratedArticle({
-              fieldId: field.id,
-              title: c.title,
-              body: c.body,
-              focus,
-              quiz: gen.quiz,
-              vocabulary: gen.vocabulary,
-              branches: gen.branches,
-            })) ?? undefined)
-          : undefined;
+
+        // Prefer a real server-synthesized baseline for today's field article; fall
+        // back to on-device generation (and for branched explorations).
+        const baseline = !nextTopic && field ? await getTodaysBaseline(field.id) : null;
+
+        let c: Content;
+        let id: string | undefined;
+        let quiz = baseline?.quiz;
+        let vocabulary = baseline?.vocabulary;
+        let branches = baseline?.branches;
+        let usedFocus = focus;
+
+        if (baseline && field) {
+          const p = await (await resolvePersonalizer()).personalize({
+            title: baseline.title,
+            body: baseline.body,
+            language: 'English',
+            difficulty,
+            targetMinutes: READ_MINUTES,
+            languageLevel: levels.cefr,
+            fieldLevel: levels.fieldLevel,
+            focus: baseline.focus ?? focus,
+          });
+          c = { title: baseline.title, topic: field.label, body: p.body.length ? p.body : baseline.body };
+          id = baseline.id; // a real article row already exists; read against it
+          usedFocus = baseline.focus ?? focus;
+        } else {
+          const topic = nextTopic ?? field?.label ?? SAMPLE_ARTICLE.topic;
+          const gen = await (await resolveGenerator()).generate({
+            topic,
+            difficulty,
+            language: 'English',
+            targetMinutes: READ_MINUTES,
+            languageLevel: levels.cefr,
+            fieldLevel: levels.fieldLevel,
+            focus,
+          });
+          c = { title: gen.title, topic: gen.topic, body: gen.body };
+          quiz = gen.quiz;
+          vocabulary = gen.vocabulary;
+          branches = gen.branches;
+          id = field
+            ? ((await saveGeneratedArticle({ fieldId: field.id, title: c.title, body: c.body, focus, quiz, vocabulary, branches })) ?? undefined)
+            : undefined;
+        }
+
         if (cancelled) return;
         setContent(c);
         setArticleId(id);
-        setVocab(gen.vocabulary);
-        setDailyArticle({
-          date: today,
-          difficulty,
-          ...c,
-          articleId: id,
-          focus,
-          fieldId: field?.id,
-          quiz: gen.quiz,
-          vocabulary: gen.vocabulary,
-          branches: gen.branches,
-        });
+        setVocab(vocabulary);
+        setDailyArticle({ date: today, difficulty, ...c, articleId: id, focus: usedFocus, fieldId: field?.id, quiz, vocabulary, branches });
       } catch {
         if (!cancelled) setContent({ title: SAMPLE_ARTICLE.subtopic, topic: SAMPLE_ARTICLE.topic, body: SAMPLE_ARTICLE.body });
       } finally {
