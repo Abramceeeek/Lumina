@@ -1,7 +1,7 @@
 import { ReactNode, useEffect, useState } from 'react';
 import { ScrollView, View, Text, Switch, StyleSheet } from 'react-native';
 import Svg, { Circle, Text as SvgText } from 'react-native-svg';
-import { colors, radius } from '@/design/tokens';
+import { colors, radius, FIELD_LEVELS } from '@/design/tokens';
 import { fonts } from '@/design/typography';
 import { Header } from '@/components/Header';
 import { Button } from '@/components/Button';
@@ -9,6 +9,7 @@ import { Input } from '@/components/Input';
 import { getApiKey, setApiKey, clearApiKey } from '@/ai/keyStore';
 import { signOut } from '@/data/auth';
 import { isSupabaseConfigured } from '@/data/supabase';
+import { getLadders } from '@/data/ladder';
 
 const STATS = [
   { label: 'Total articles', value: '12' },
@@ -21,8 +22,10 @@ export function Profile() {
   const [notifs, setNotifs] = useState(true);
   const [apiKeyInput, setApiKeyInput] = useState('');
   const [savedKey, setSavedKey] = useState<string | null>(null);
+  const [ladders, setLadders] = useState<{ cefr: string; fields: { label: string; level: number }[] } | null>(null);
   useEffect(() => {
     getApiKey().then(setSavedKey);
+    getLadders().then(setLadders);
   }, []);
   const saveKey = async () => {
     const v = apiKeyInput.trim();
@@ -88,6 +91,24 @@ export function Profile() {
               </View>
             ))}
           </View>
+
+          {ladders ? (
+            <>
+              <Text style={styles.h3}>Your levels</Text>
+              <View style={[styles.settings, { marginBottom: 24 }]}>
+                <SettingRow label="English · language" last={ladders.fields.length === 0}>
+                  <Text style={styles.valAccent}>{ladders.cefr}</Text>
+                </SettingRow>
+                {ladders.fields.map((f, i) => (
+                  <SettingRow key={f.label} label={f.label} last={i === ladders.fields.length - 1}>
+                    <Text style={styles.val}>
+                      {FIELD_LEVELS[f.level - 1]} · {f.level}/5
+                    </Text>
+                  </SettingRow>
+                ))}
+              </View>
+            </>
+          ) : null}
 
           <Text style={styles.h3}>Settings</Text>
           <View style={styles.settings}>
