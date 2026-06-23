@@ -1,8 +1,7 @@
 // Pure quiz-scoring logic, extracted from the Quiz screen so it's unit-testable.
+import type { QuizQuestion } from '@lumina/shared';
 
-export type QuizQuestion =
-  | { type: 'mc'; q: string; opts: string[]; correct: number }
-  | { type: 'open'; q: string; placeholder: string };
+export type { QuizQuestion };
 
 export function mcCount(quiz: QuizQuestion[]): number {
   return quiz.filter((q) => q.type === 'mc').length;

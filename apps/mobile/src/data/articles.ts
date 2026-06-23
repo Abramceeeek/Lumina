@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import type { Focus } from '@lumina/shared';
+import type { Focus, QuizQuestion, VocabItem, BranchOption } from '@lumina/shared';
 
 // Persistence for the daily loop (Phase 1). The client generates an article, then
 // stores it as the user's own baseline (RLS: author_id = auth.uid) so reads/quiz/
@@ -13,6 +13,9 @@ export type PersistArticleInput = {
   focus?: Focus;
   estReadMinutes?: number;
   lang?: string;
+  quiz?: QuizQuestion[];
+  vocabulary?: VocabItem[];
+  branches?: BranchOption[];
 };
 
 // Insert a client-generated article; returns its id (or null if not persisted).
@@ -30,6 +33,9 @@ export async function saveGeneratedArticle(a: PersistArticleInput): Promise<stri
       focus: a.focus ?? 'field',
       est_read_minutes: a.estReadMinutes ?? 5,
       lang: a.lang ?? 'en',
+      quiz_questions: a.quiz ?? [],
+      vocabulary: a.vocabulary ?? [],
+      branches_text: a.branches ?? [],
     })
     .select('id')
     .single();

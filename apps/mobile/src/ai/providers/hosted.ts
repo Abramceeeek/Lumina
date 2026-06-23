@@ -1,5 +1,6 @@
 import type { Personalizer, Generator } from '../types';
 import { supabase } from '@/data/supabase';
+import { sanitizeQuiz, sanitizeVocab, sanitizeBranches } from '../sanitize';
 import { mockPersonalizer, mockGenerator } from './mock';
 
 // Calls the Supabase Edge Function (server-side Claude key) when it's deployed.
@@ -33,9 +34,19 @@ export function hostedGenerator(): Generator {
         if (!supabase) throw new Error('Supabase not configured');
         const { data, error } = await supabase.functions.invoke('personalize', { body: { ...input, mode: 'generate' } });
         if (error) throw error;
-        const payload = data as { title?: string; body?: string[]; note?: string } | null;
+        const payload = data as
+          | { title?: string; body?: string[]; note?: string; quiz?: unknown; vocabulary?: unknown; branches?: unknown }
+          | null;
         if (payload?.body?.length) {
-          return { title: payload.title ?? input.topic, topic: input.topic, body: payload.body, note: payload.note };
+          return {
+            title: payload.title ?? input.topic,
+            topic: input.topic,
+            body: payload.body,
+            note: payload.note,
+            quiz: sanitizeQuiz(payload.quiz),
+            vocabulary: sanitizeVocab(payload.vocabulary),
+            branches: sanitizeBranches(payload.branches),
+          };
         }
         throw new Error('Empty response');
       } catch {

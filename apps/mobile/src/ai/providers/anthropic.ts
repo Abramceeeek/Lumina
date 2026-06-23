@@ -1,4 +1,5 @@
 import type { Personalizer, Generator } from '../types';
+import { sanitizeQuiz, sanitizeVocab, sanitizeBranches } from '../sanitize';
 
 const MODEL = 'claude-haiku-4-5-20251001'; // fast + cheap for per-read work
 
@@ -13,7 +14,7 @@ async function callAnthropic(apiKey: string, prompt: string, maxTokens = 1500): 
   return data?.content?.[0]?.text ?? '';
 }
 
-function extractJson(text: string): { title?: string; body?: string[] } | null {
+function extractJson(text: string): Record<string, unknown> | null {
   const match = text.match(/\{[\s\S]*\}/);
   if (!match) return null;
   try {
@@ -71,11 +72,21 @@ export function anthropicGenerator(apiKey: string): Generator {
       const prompt = `Write an engaging, factual ~${words}-word article for a ${difficulty}-level ${language} learner about: ${topic}.
 ${focusLine(focus, languageLevel, fieldLevel)}
 Adjust vocabulary and sentence complexity appropriately. Make it genuinely interesting and self-contained.
-Respond with ONLY a JSON object: {"title": string, "body": string[]} where "body" is an array of paragraph strings. No markdown fences, no preamble.`;
-      const text = await callAnthropic(apiKey, prompt, 2000);
+Then add learning scaffolding drawn from THIS article.
+Respond with ONLY a JSON object (no markdown fences, no preamble):
+{"title": string, "body": string[], "vocabulary": [{"word": string, "definition": string}], "quiz": [{"type":"mc","q":string,"opts":[string,string,string,string],"correct":number},{"type":"mc","q":string,"opts":[string,string,string,string],"correct":number},{"type":"open","q":string,"placeholder":string}], "branches": [{"title":string,"description":string}]}
+"vocabulary": 4-6 key terms from the article. "quiz": exactly two multiple-choice then one open reflection; "correct" is the 0-based index of the right option. "branches": 4-5 related next topics to explore.`;
+      const text = await callAnthropic(apiKey, prompt, 2800);
       const obj = extractJson(text);
       if (obj && Array.isArray(obj.body) && obj.body.length) {
-        return { title: String(obj.title ?? topic), topic, body: obj.body.map(String) };
+        return {
+          title: String(obj.title ?? topic),
+          topic,
+          body: obj.body.map(String),
+          quiz: sanitizeQuiz(obj.quiz),
+          vocabulary: sanitizeVocab(obj.vocabulary),
+          branches: sanitizeBranches(obj.branches),
+        };
       }
       const paras = paragraphs(text);
       return { title: topic, topic, body: paras.length ? paras : [text] };

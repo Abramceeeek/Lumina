@@ -16,13 +16,15 @@ export function Quiz({ onFinish }: { onFinish: () => void }) {
   const articleId = useAppStore((s) => s.dailyArticle?.articleId);
   const focus = useAppStore((s) => s.dailyArticle?.focus);
   const fieldId = useAppStore((s) => s.dailyArticle?.fieldId);
+  const articleQuiz = useAppStore((s) => s.dailyArticle?.quiz);
+  const quiz = articleQuiz?.length ? articleQuiz : SAMPLE_QUIZ;
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [openText, setOpenText] = useState('');
   const [submitted, setSubmitted] = useState(false);
 
-  const total = mcCount(SAMPLE_QUIZ);
-  const correct = mcScore(SAMPLE_QUIZ, answers);
-  const answered = allMcAnswered(SAMPLE_QUIZ, answers);
+  const total = mcCount(quiz);
+  const correct = mcScore(quiz, answers);
+  const answered = allMcAnswered(quiz, answers);
 
   const finishTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (finishTimer.current) clearTimeout(finishTimer.current); }, []);
@@ -46,7 +48,7 @@ export function Quiz({ onFinish }: { onFinish: () => void }) {
           </View>
 
           <View style={{ gap: 28 }}>
-            {SAMPLE_QUIZ.map((q, qi) => (
+            {quiz.map((q, qi) => (
               <View key={qi} style={styles.card}>
                 <Text style={styles.q}>
                   <Text style={styles.qnum}>{qi + 1}. </Text>

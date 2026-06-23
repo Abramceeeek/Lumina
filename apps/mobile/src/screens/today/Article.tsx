@@ -14,6 +14,7 @@ import { resolveGenerator } from '@/ai/resolve';
 import { getPrimaryInterestField } from '@/data/profile';
 import { saveGeneratedArticle, recordRead } from '@/data/articles';
 import { nextFocus, getFieldLevels } from '@/data/ladder';
+import type { VocabItem } from '@lumina/shared';
 import { addHighlightRemote } from '@/data/highlights';
 
 const READ_MINUTES = 5;
@@ -39,6 +40,7 @@ export function Article({ onFinish }: { onFinish: () => void }) {
   const [content, setContent] = useState<Content | null>(cached ? { title: cached.title, topic: cached.topic, body: cached.body } : null);
   const [genLoading, setGenLoading] = useState(!cached);
   const [articleId, setArticleId] = useState<string | undefined>(cached?.articleId);
+  const [vocab, setVocab] = useState<VocabItem[] | undefined>(cached?.vocabulary);
 
   const totalSecs = READ_MINUTES * 60;
   const [progress, setProgress] = useState(0);
@@ -68,11 +70,32 @@ export function Article({ onFinish }: { onFinish: () => void }) {
         });
         if (cancelled) return;
         const c = { title: gen.title, topic: gen.topic, body: gen.body };
-        const id = field ? ((await saveGeneratedArticle({ fieldId: field.id, title: c.title, body: c.body, focus })) ?? undefined) : undefined;
+        const id = field
+          ? ((await saveGeneratedArticle({
+              fieldId: field.id,
+              title: c.title,
+              body: c.body,
+              focus,
+              quiz: gen.quiz,
+              vocabulary: gen.vocabulary,
+              branches: gen.branches,
+            })) ?? undefined)
+          : undefined;
         if (cancelled) return;
         setContent(c);
         setArticleId(id);
-        setDailyArticle({ date: today, difficulty, ...c, articleId: id, focus, fieldId: field?.id });
+        setVocab(gen.vocabulary);
+        setDailyArticle({
+          date: today,
+          difficulty,
+          ...c,
+          articleId: id,
+          focus,
+          fieldId: field?.id,
+          quiz: gen.quiz,
+          vocabulary: gen.vocabulary,
+          branches: gen.branches,
+        });
       } catch {
         if (!cancelled) setContent({ title: SAMPLE_ARTICLE.subtopic, topic: SAMPLE_ARTICLE.topic, body: SAMPLE_ARTICLE.body });
       } finally {
@@ -196,6 +219,18 @@ export function Article({ onFinish }: { onFinish: () => void }) {
             ))}
           </View>
 
+          {vocab && vocab.length ? (
+            <View style={styles.vocabCard}>
+              <Text style={styles.vocabHead}>Words to know</Text>
+              {vocab.map((v) => (
+                <View key={v.word} style={styles.vocabRow}>
+                  <Text style={styles.vocabWord}>{v.word}</Text>
+                  <Text style={styles.vocabDef}>{v.definition}</Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
+
           <View style={styles.endRow}>
             <View style={styles.endLine} />
             <Text style={styles.endText}>End of today&apos;s article</Text>
@@ -242,6 +277,11 @@ const styles = StyleSheet.create({
   hint: { fontSize: 12, color: colors.textTer, fontFamily: fonts.regular, marginTop: 12, marginBottom: 16 },
   para: { fontSize: 18, lineHeight: 32, color: colors.textSec, fontFamily: fonts.regular },
   paraLead: { color: colors.text, fontFamily: fonts.medium },
+  vocabCard: { marginTop: 36, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: radius.card, padding: 18, gap: 12 },
+  vocabHead: { fontSize: 12, fontFamily: fonts.semibold, color: colors.textTer, textTransform: 'uppercase', letterSpacing: 0.5 },
+  vocabRow: { gap: 2 },
+  vocabWord: { fontSize: 15, fontFamily: fonts.semibold, color: colors.accent },
+  vocabDef: { fontSize: 14, fontFamily: fonts.regular, color: colors.textSec, lineHeight: 20 },
   endRow: { flexDirection: 'row', alignItems: 'center', gap: 16, marginTop: 48 },
   endLine: { flex: 1, height: 1, backgroundColor: colors.border },
   endText: { fontSize: 13, color: colors.textTer, fontStyle: 'italic', fontFamily: fonts.regular },
