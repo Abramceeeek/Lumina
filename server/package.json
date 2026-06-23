@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "ingest": "tsx src/run-ingest.ts",
+    "synthesize": "tsx src/run-synthesize.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
