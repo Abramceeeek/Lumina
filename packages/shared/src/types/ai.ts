@@ -1,4 +1,6 @@
 import type { Cefr, Difficulty, FieldLevel, Focus } from './learning';
+import type { QuizQuestion } from './quiz';
+import type { VocabItem, BranchOption } from './content';
 
 // Dual-ladder context (CLAUDE.md §7) threaded into every generation/personalization.
 type LadderContext = {
@@ -31,7 +33,16 @@ export type GenerateInput = {
   language: string;
   targetMinutes: number;
 } & LadderContext;
-export type Generated = { title: string; topic: string; body: string[]; note?: string };
+export type Generated = {
+  title: string;
+  topic: string;
+  body: string[];
+  note?: string;
+  // Enrichment (Phase 3): a per-article quiz, target vocabulary, and branch options.
+  quiz?: QuizQuestion[];
+  vocabulary?: VocabItem[];
+  branches?: BranchOption[];
+};
 
 export interface Generator {
   id: string;

@@ -24,6 +24,19 @@ export const mockGenerator: Generator = {
         `Add your Claude API key in Profile — or deploy the hosted AI function — and each day's reading becomes a real, AI-written piece about the topics you chose.`,
       ],
       note: `Demo article${focus ? ` (${focus} focus)` : ''} — add a Claude key (Profile) for real generation.`,
+      quiz: [
+        { type: 'mc', q: 'What was this demo about?', opts: [topic, 'Something unrelated', 'A blank page', 'None of these'], correct: 0 },
+        { type: 'mc', q: 'What turns on real, AI-written articles?', opts: ['Nothing', 'Adding a Claude key in Profile', 'Waiting a week', 'Reinstalling'], correct: 1 },
+        { type: 'open', q: `What would you most want to learn about ${topic}?`, placeholder: 'Type your thoughts…' },
+      ],
+      vocabulary: [
+        { word: 'personalize', definition: 'To adapt content to one person — here, your language level and field depth.' },
+        { word: 'baseline', definition: 'The shared article the server writes once, before it is personalized for you.' },
+      ],
+      branches: [
+        { title: `${topic}, one level deeper`, description: 'Go further once real generation is enabled.' },
+        { title: 'A related thread', description: 'Branch into an adjacent idea.' },
+      ],
     };
   },
 };

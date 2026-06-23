@@ -19,12 +19,16 @@ export function Branch({ onDone }: { onDone: () => void }) {
   const setNextTopic = useAppStore((s) => s.setNextTopic);
   const setCompletedDate = useAppStore((s) => s.setCompletedDate);
   const articleId = useAppStore((s) => s.dailyArticle?.articleId);
+  const articleBranches = useAppStore((s) => s.dailyArticle?.branches);
+  const branches = articleBranches?.length
+    ? articleBranches.map((b, i) => ({ id: `g${i}`, title: b.title, desc: b.description }))
+    : SAMPLE_BRANCHES;
 
   const doneTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (doneTimer.current) clearTimeout(doneTimer.current); }, []);
 
   const confirm = () => {
-    const chosen = SAMPLE_BRANCHES.find((b) => b.id === selected);
+    const chosen = branches.find((b) => b.id === selected);
     setNextTopic(customText.trim() || chosen?.title || 'your next topic');
     setCompletedDate(new Date().toISOString().slice(0, 10));
     void appendTrailNode(articleId);
@@ -47,7 +51,7 @@ export function Branch({ onDone }: { onDone: () => void }) {
           <Text style={styles.sub}>Each path builds on what you just read. Your next article arrives tomorrow.</Text>
 
           <View style={styles.grid}>
-            {SAMPLE_BRANCHES.map((b) => {
+            {branches.map((b) => {
               const sel = selected === b.id;
               return (
                 <Card key={b.id} selected={sel} onPress={() => { setSelected(b.id); setCustomText(''); }} style={styles.branchCard}>
