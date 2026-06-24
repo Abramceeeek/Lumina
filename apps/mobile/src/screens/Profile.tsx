@@ -6,7 +6,8 @@ import { fonts } from '@/design/typography';
 import { Header } from '@/components/Header';
 import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
-import { getApiKey, setApiKey, clearApiKey } from '@/ai/keyStore';
+import { getAiConfig, setAiConfig, clearAiConfig } from '@/ai/keyStore';
+import { PROVIDERS, providerInfo, type ProviderId, type AiConfig } from '@/ai/catalog';
 import { signOut } from '@/data/auth';
 import { isSupabaseConfigured } from '@/data/supabase';
 import { getLadders } from '@/data/ladder';
@@ -26,25 +27,32 @@ export function Profile() {
   const readWidth = useAppStore((s) => s.readWidth);
   const setFontSize = useAppStore((s) => s.setFontSize);
   const setReadWidth = useAppStore((s) => s.setReadWidth);
-  const [apiKeyInput, setApiKeyInput] = useState('');
-  const [savedKey, setSavedKey] = useState<string | null>(null);
+  const [savedConfig, setSavedConfig] = useState<AiConfig | null>(null);
+  const [provider, setProvider] = useState<ProviderId>('anthropic');
+  const [keyInput, setKeyInput] = useState('');
+  const [modelInput, setModelInput] = useState('');
   const [ladders, setLadders] = useState<{ cefr: string; fields: { label: string; level: number }[] } | null>(null);
   const [retention, setRetention] = useState(0);
   useEffect(() => {
-    getApiKey().then(setSavedKey);
+    getAiConfig().then((c) => {
+      setSavedConfig(c);
+      if (c) setProvider(c.provider);
+    });
     getLadders().then(setLadders);
     getRetention().then(setRetention);
   }, []);
   const saveKey = async () => {
-    const v = apiKeyInput.trim();
-    if (!v) return;
-    await setApiKey(v);
-    setSavedKey(v);
-    setApiKeyInput('');
+    const key = keyInput.trim();
+    if (!key) return;
+    const cfg: AiConfig = { provider, key, ...(modelInput.trim() ? { model: modelInput.trim() } : {}) };
+    await setAiConfig(cfg);
+    setSavedConfig(cfg);
+    setKeyInput('');
+    setModelInput('');
   };
   const removeKey = async () => {
-    await clearApiKey();
-    setSavedKey(null);
+    await clearAiConfig();
+    setSavedConfig(null);
   };
   const r = 44;
   const circ = 2 * Math.PI * r;
@@ -144,18 +152,43 @@ export function Profile() {
             </SettingRow>
           </View>
 
-          <Text style={[styles.h3, { marginTop: 24 }]}>AI personalization</Text>
+          <Text style={[styles.h3, { marginTop: 24 }]}>AI provider</Text>
           <View style={styles.aiCard}>
-            <Text style={styles.aiStatus}>
-              {savedKey ? '✓ Connected — articles personalize with Claude.' : 'Using the offline demo. Add a Claude API key to personalize for real.'}
-            </Text>
-            {savedKey ? (
-              <Button variant="ghost" size="sm" label="Remove key" onPress={removeKey} style={{ marginTop: 12, alignSelf: 'flex-start' }} />
+            {savedConfig ? (
+              <>
+                <Text style={styles.aiStatus}>✓ Connected via {providerInfo(savedConfig.provider).label}. Articles personalize for real.</Text>
+                <Button variant="ghost" size="sm" label="Change / remove" onPress={removeKey} style={{ marginTop: 12, alignSelf: 'flex-start' }} />
+              </>
             ) : (
-              <View style={{ marginTop: 12, gap: 8 }}>
-                <Input placeholder="sk-ant-…" value={apiKeyInput} onChangeText={setApiKeyInput} secureTextEntry autoCapitalize="none" accessibilityLabel="Anthropic API key" />
-                <Button size="sm" label="Save key" onPress={saveKey} disabled={!apiKeyInput.trim()} style={{ alignSelf: 'flex-start' }} />
-              </View>
+              <>
+                <Text style={styles.aiStatus}>Pick a provider and paste a key. Claude (★) is recommended; Groq, Gemini and OpenRouter have free tiers — no cost to test.</Text>
+                <View style={styles.provRow}>
+                  {PROVIDERS.map((p) => {
+                    const active = provider === p.id;
+                    return (
+                      <Pressable
+                        key={p.id}
+                        onPress={() => setProvider(p.id)}
+                        accessibilityRole="radio"
+                        accessibilityState={{ checked: active }}
+                        accessibilityLabel={p.label}
+                        style={[styles.provChip, active ? styles.provChipActive : null]}
+                      >
+                        <Text style={[styles.provChipText, active ? styles.provChipTextActive : null]}>
+                          {p.label}
+                          {p.recommended ? ' ★' : p.free ? ' · free' : ''}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                <Text style={styles.aiHelp}>Get a key at {providerInfo(provider).keyUrl}</Text>
+                <View style={{ marginTop: 10, gap: 8 }}>
+                  <Input placeholder={providerInfo(provider).hint} value={keyInput} onChangeText={setKeyInput} secureTextEntry autoCapitalize="none" accessibilityLabel={`${providerInfo(provider).label} API key`} />
+                  <Input placeholder={`Model (optional) — ${providerInfo(provider).defaultModel}`} value={modelInput} onChangeText={setModelInput} autoCapitalize="none" accessibilityLabel="Model override" />
+                  <Button size="sm" label="Save" onPress={saveKey} disabled={!keyInput.trim()} style={{ alignSelf: 'flex-start' }} />
+                </View>
+              </>
             )}
           </View>
 
@@ -217,6 +250,12 @@ const styles = StyleSheet.create({
   h3: { fontSize: 15, fontFamily: fonts.semibold, color: colors.text, marginBottom: 12 },
   aiCard: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: radius.card, padding: 16 },
   aiStatus: { fontSize: 13, color: colors.textSec, lineHeight: 20, fontFamily: fonts.regular },
+  provRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
+  provChip: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border, backgroundColor: semantic.surfaceSubtle },
+  provChipActive: { borderColor: colors.accent, backgroundColor: colors.accentLight },
+  provChipText: { fontSize: 12, color: colors.textSec, fontFamily: fonts.medium },
+  provChipTextActive: { color: colors.accent },
+  aiHelp: { fontSize: 12, color: colors.textTer, fontFamily: fonts.regular, marginTop: 10 },
   settings: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: radius.card, overflow: 'hidden' },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, paddingHorizontal: 18 },
   rowBorder: { borderBottomWidth: 1, borderBottomColor: colors.border },
