@@ -1,21 +1,22 @@
 import type { Personalizer, Generator } from './types';
-import { getApiKey } from './keyStore';
+import { getAiConfig } from './keyStore';
+import { createProvider } from './llm';
 import { isSupabaseConfigured } from '@/data/supabase';
 import { mockPersonalizer, mockGenerator } from './providers/mock';
-import { anthropicPersonalizer, anthropicGenerator } from './providers/anthropic';
 import { hostedPersonalizer, hostedGenerator } from './providers/hosted';
 
-// Resolution order (CLAUDE.md §6): BYOK key → hosted (server key) → mock demo.
+// Resolution order (CLAUDE.md §6): the user's BYOK provider → hosted (server key)
+// → offline mock demo.
 export async function resolvePersonalizer(): Promise<Personalizer> {
-  const key = await getApiKey();
-  if (key) return anthropicPersonalizer(key);
+  const cfg = await getAiConfig();
+  if (cfg) return createProvider(cfg).personalizer;
   if (isSupabaseConfigured) return hostedPersonalizer();
   return mockPersonalizer;
 }
 
 export async function resolveGenerator(): Promise<Generator> {
-  const key = await getApiKey();
-  if (key) return anthropicGenerator(key);
+  const cfg = await getAiConfig();
+  if (cfg) return createProvider(cfg).generator;
   if (isSupabaseConfigured) return hostedGenerator();
   return mockGenerator;
 }
