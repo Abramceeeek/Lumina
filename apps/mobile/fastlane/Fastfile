@@ -18,12 +18,12 @@ platform :ios do
     # Register the App ID + App Store Connect app record if they don't exist yet
     # (idempotent — skips when already present).
     produce(
-      api_key: api_key,
       app_identifier: APP_ID,
       app_name: "Lumina",
       language: "English",
       sku: "lumina001",
-      platforms: ["ios"]
+      platforms: ["ios"],
+      team_id: ENV["APPLE_TEAM_ID"]
     )
 
     # Distribution certificate (created headlessly via the API if none exists).
