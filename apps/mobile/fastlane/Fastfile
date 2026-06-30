@@ -15,16 +15,8 @@ platform :ios do
       key_filepath: ENV["ASC_KEY_PATH"]
     )
 
-    # Register the App ID + App Store Connect app record if they don't exist yet
-    # (idempotent — skips when already present).
-    produce(
-      app_identifier: APP_ID,
-      app_name: "Lumina",
-      language: "English",
-      sku: "lumina001",
-      platforms: ["ios"],
-      team_id: ENV["APPLE_TEAM_ID"]
-    )
+    # The App ID + App Store Connect app record are created once by hand (the API
+    # key can't create apps without an Apple ID login). Everything below is headless.
 
     # Distribution certificate (created headlessly via the API if none exists).
     cert(api_key: api_key)
