@@ -11,8 +11,7 @@ def asc_api_key
 end
 
 platform :ios do
-  # One-time cleanup: revoke distribution certs orphaned by earlier CI runs, so
-  # match can create + store a fresh one within Apple's 2-certificate limit.
+  # One-time cleanup: revoke distribution certs orphaned by earlier CI runs.
   lane :clean_certs do
     asc_api_key
     require "spaceship"
@@ -27,23 +26,21 @@ platform :ios do
     end
   end
 
-  # Build with App Store (distribution) signing via match, ship to TestFlight.
-  lane :beta do
+  # Install the distribution cert + App Store profile via match and switch the
+  # project to manual signing with them. The actual build runs via raw xcodebuild
+  # in the workflow (gym mis-handles RN 0.85's Swift package resolution).
+  lane :setup_signing do
     api_key = asc_api_key
 
-    keychain_name = "ci.keychain"
-    keychain_password = "ci_pass"
     create_keychain(
-      name: keychain_name,
-      password: keychain_password,
+      name: "ci.keychain",
+      password: "ci_pass",
       default_keychain: true,
       unlock: true,
       timeout: 3600,
       lock_when_sleeps: false
     )
 
-    # match creates ONE distribution cert + App Store profile, stores them
-    # encrypted in the repo (branch match-certs), and reuses them every run.
     match(
       type: "appstore",
       api_key: api_key,
@@ -52,28 +49,26 @@ platform :ios do
       git_branch: "match-certs",
       storage_mode: "git",
       readonly: false,
-      keychain_name: keychain_name,
-      keychain_password: keychain_password
+      keychain_name: "ci.keychain",
+      keychain_password: "ci_pass"
     )
 
-    profile_name = lane_context[SharedValues::MATCH_PROVISIONING_PROFILE_MAPPING][APP_ID]
     update_code_signing_settings(
       use_automatic_signing: false,
       path: "ios/Lumina.xcodeproj",
       team_id: ENV["APPLE_TEAM_ID"],
       code_sign_identity: "Apple Distribution",
-      profile_name: profile_name,
+      profile_name: lane_context[SharedValues::MATCH_PROVISIONING_PROFILE_MAPPING][APP_ID],
       targets: ["Lumina"]
     )
+  end
 
-    build_app(
-      workspace: "ios/Lumina.xcworkspace",
-      scheme: "Lumina",
-      export_method: "app-store",
-      disable_package_automatic_updates: true,
-      export_options: { provisioningProfiles: { APP_ID => profile_name } }
+  # Upload an already-built .ipa (path in IPA_PATH) to TestFlight.
+  lane :upload do
+    upload_to_testflight(
+      api_key: asc_api_key,
+      ipa: ENV["IPA_PATH"],
+      skip_waiting_for_build_processing: true
     )
-
-    upload_to_testflight(api_key: api_key, skip_waiting_for_build_processing: true)
   end
 end
