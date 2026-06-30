@@ -48,43 +48,10 @@ jobs:
           mkdir -p "${{ github.workspace }}/private_keys"
           echo "${{ secrets.APPSTORE_API_KEY_P8_BASE64 }}" | base64 --decode > "$KEY_PATH"
 
-      - name: Archive
-        run: |
-          WS=$(ls -d ios/*.xcworkspace | head -1)
-          SCHEME=$(basename "$WS" .xcworkspace)
-          echo "Workspace=$WS Scheme=$SCHEME"
-          xcodebuild -workspace "$WS" -scheme "$SCHEME" -configuration Release \
-            -archivePath "$RUNNER_TEMP/app.xcarchive" -sdk iphoneos \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath "$KEY_PATH" \
-            -authenticationKeyID ${{ secrets.APPSTORE_API_KEY_ID }} \
-            -authenticationKeyIssuerID ${{ secrets.APPSTORE_API_ISSUER_ID }} \
-            DEVELOPMENT_TEAM=${{ secrets.APPLE_TEAM_ID }} \
-            CODE_SIGN_STYLE=Automatic \
-            archive
-
-      - name: Export IPA
-        run: |
-          cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0"><dict>
-            <key>method</key><string>app-store</string>
-            <key>teamID</key><string>${{ secrets.APPLE_TEAM_ID }}</string>
-          </dict></plist>
-          PLIST
-          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/app.xcarchive" \
-            -exportPath "$RUNNER_TEMP/export" \
-            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath "$KEY_PATH" \
-            -authenticationKeyID ${{ secrets.APPSTORE_API_KEY_ID }} \
-            -authenticationKeyIssuerID ${{ secrets.APPSTORE_API_ISSUER_ID }}
-
-      - name: Upload to TestFlight
-        run: |
-          IPA=$(ls "$RUNNER_TEMP"/export/*.ipa | head -1)
-          echo "Uploading $IPA"
-          xcrun altool --upload-app -t ios -f "$IPA" \
-            --apiKey ${{ secrets.APPSTORE_API_KEY_ID }} \
-            --apiIssuer ${{ secrets.APPSTORE_API_ISSUER_ID }}
+      - name: Build + upload to TestFlight (Fastlane)
+        run: fastlane beta
+        env:
+          ASC_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APPSTORE_API_ISSUER_ID }}
+          ASC_KEY_PATH: ${{ env.KEY_PATH }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
