@@ -84,9 +84,12 @@ jobs:
 
       - name: Archive (xcodebuild)
         run: |
+          brew install xcbeautify >/dev/null 2>&1 || true
           cd ios
+          set -o pipefail
           xcodebuild -workspace Lumina.xcworkspace -scheme Lumina -configuration Release \
-            -archivePath "$RUNNER_TEMP/app.xcarchive" -sdk iphoneos archive
+            -archivePath "$RUNNER_TEMP/app.xcarchive" -sdk iphoneos -jobs 1 archive 2>&1 \
+            | xcbeautify --renderer github-actions
 
       - name: Export IPA
         run: |
