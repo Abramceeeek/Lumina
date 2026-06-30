@@ -70,6 +70,7 @@ platform :ios do
       workspace: "ios/Lumina.xcworkspace",
       scheme: "Lumina",
       export_method: "app-store",
+      disable_package_automatic_updates: true,
       export_options: { provisioningProfiles: { APP_ID => profile_name } }
     )
 
