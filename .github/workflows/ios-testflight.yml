@@ -51,6 +51,9 @@ jobs:
       - name: Install CocoaPods
         run: cd ios && pod install
 
+      - name: Pre-resolve Swift packages
+        run: cd ios && xcodebuild -resolvePackageDependencies -workspace Lumina.xcworkspace -scheme Lumina || true
+
       - name: Stage App Store Connect API key
         run: |
           mkdir -p "${{ github.workspace }}/private_keys"
