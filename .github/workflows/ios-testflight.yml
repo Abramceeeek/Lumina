@@ -16,6 +16,14 @@ name: iOS TestFlight
 
 on:
   workflow_dispatch:
+    inputs:
+      clean_certs:
+        description: "Revoke existing distribution certs first (one-time)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
 
 jobs:
   ios:
@@ -48,6 +56,19 @@ jobs:
           mkdir -p "${{ github.workspace }}/private_keys"
           echo "${{ secrets.APPSTORE_API_KEY_P8_BASE64 }}" | base64 --decode > "$KEY_PATH"
 
+      - name: Configure git (for match storage)
+        run: |
+          git config --global user.email "ci@lumina.app"
+          git config --global user.name "Lumina CI"
+
+      - name: Clean orphaned distribution certs (one-time)
+        if: ${{ inputs.clean_certs }}
+        run: fastlane clean_certs
+        env:
+          ASC_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APPSTORE_API_ISSUER_ID }}
+          ASC_KEY_PATH: ${{ env.KEY_PATH }}
+
       - name: Build + upload to TestFlight (Fastlane)
         run: fastlane beta
         env:
@@ -55,3 +76,5 @@ jobs:
           ASC_ISSUER_ID: ${{ secrets.APPSTORE_API_ISSUER_ID }}
           ASC_KEY_PATH: ${{ env.KEY_PATH }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          MATCH_GIT_URL: https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
