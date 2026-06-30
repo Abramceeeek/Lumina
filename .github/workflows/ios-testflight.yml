@@ -1,0 +1,90 @@
+name: iOS TestFlight
+
+# Builds a signed iOS app on a GitHub macOS runner (free for public repos) and
+# uploads it to TestFlight — no Expo cloud. Manual trigger.
+#
+# Required repo secrets (Settings → Secrets and variables → Actions):
+#   APPLE_TEAM_ID                - your 10-char Apple Developer Team ID
+#   APPSTORE_API_KEY_ID          - App Store Connect API key ID
+#   APPSTORE_API_ISSUER_ID       - App Store Connect API issuer ID
+#   APPSTORE_API_KEY_P8_BASE64   - the AuthKey_*.p8 file, base64-encoded
+#   EXPO_PUBLIC_SUPABASE_URL     - (already set for the Android build)
+#   EXPO_PUBLIC_SUPABASE_ANON_KEY
+#
+# One-time on Apple's side: create the app in App Store Connect (Apps → +) with
+# bundle id com.abramceeeek.lumina before the first upload.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  ios:
+    runs-on: macos-15
+    defaults:
+      run:
+        working-directory: apps/mobile
+    env:
+      KEY_PATH: ${{ github.workspace }}/private_keys/AuthKey_${{ secrets.APPSTORE_API_KEY_ID }}.p8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: apps/mobile/package-lock.json
+      - run: npm ci
+
+      - name: Generate native iOS project
+        run: npx expo prebuild -p ios --no-install
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+
+      - name: Install CocoaPods
+        run: cd ios && pod install
+
+      - name: Stage App Store Connect API key
+        run: |
+          mkdir -p "${{ github.workspace }}/private_keys"
+          echo "${{ secrets.APPSTORE_API_KEY_P8_BASE64 }}" | base64 --decode > "$KEY_PATH"
+
+      - name: Archive
+        run: |
+          WS=$(ls -d ios/*.xcworkspace | head -1)
+          SCHEME=$(basename "$WS" .xcworkspace)
+          echo "Workspace=$WS Scheme=$SCHEME"
+          xcodebuild -workspace "$WS" -scheme "$SCHEME" -configuration Release \
+            -archivePath "$RUNNER_TEMP/app.xcarchive" -sdk iphoneos \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$KEY_PATH" \
+            -authenticationKeyID ${{ secrets.APPSTORE_API_KEY_ID }} \
+            -authenticationKeyIssuerID ${{ secrets.APPSTORE_API_ISSUER_ID }} \
+            DEVELOPMENT_TEAM=${{ secrets.APPLE_TEAM_ID }} \
+            CODE_SIGN_STYLE=Automatic \
+            archive
+
+      - name: Export IPA
+        run: |
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store</string>
+            <key>teamID</key><string>${{ secrets.APPLE_TEAM_ID }}</string>
+          </dict></plist>
+          PLIST
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/app.xcarchive" \
+            -exportPath "$RUNNER_TEMP/export" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$KEY_PATH" \
+            -authenticationKeyID ${{ secrets.APPSTORE_API_KEY_ID }} \
+            -authenticationKeyIssuerID ${{ secrets.APPSTORE_API_ISSUER_ID }}
+
+      - name: Upload to TestFlight
+        run: |
+          IPA=$(ls "$RUNNER_TEMP"/export/*.ipa | head -1)
+          echo "Uploading $IPA"
+          xcrun altool --upload-app -t ios -f "$IPA" \
+            --apiKey ${{ secrets.APPSTORE_API_KEY_ID }} \
+            --apiIssuer ${{ secrets.APPSTORE_API_ISSUER_ID }}
