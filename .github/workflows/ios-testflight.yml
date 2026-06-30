@@ -27,7 +27,7 @@ permissions:
 
 jobs:
   ios:
-    runs-on: macos-15
+    runs-on: macos-26 # Xcode 26 / iOS 26 SDK — required for Expo SDK 56 + App Store uploads
     defaults:
       run:
         working-directory: apps/mobile
@@ -35,6 +35,9 @@ jobs:
       KEY_PATH: ${{ github.workspace }}/private_keys/AuthKey_${{ secrets.APPSTORE_API_KEY_ID }}.p8
     steps:
       - uses: actions/checkout@v4
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -52,7 +55,12 @@ jobs:
         run: cd ios && pod install
 
       - name: Pre-resolve Swift packages
-        run: cd ios && xcodebuild -resolvePackageDependencies -workspace Lumina.xcworkspace -scheme Lumina || true
+        run: |
+          cd ios
+          for i in 1 2 3; do
+            xcodebuild -resolvePackageDependencies -workspace Lumina.xcworkspace -scheme Lumina && break
+            echo "resolve attempt $i failed; retry in 20s"; sleep 20
+          done
 
       - name: Stage App Store Connect API key
         run: |
@@ -87,9 +95,14 @@ jobs:
           brew install xcbeautify >/dev/null 2>&1 || true
           cd ios
           set -o pipefail
-          xcodebuild -workspace Lumina.xcworkspace -scheme Lumina -configuration Release \
-            -archivePath "$RUNNER_TEMP/app.xcarchive" -sdk iphoneos -jobs 1 archive 2>&1 \
-            | xcbeautify --renderer github-actions
+          archive() {
+            xcodebuild -workspace Lumina.xcworkspace -scheme Lumina -configuration Release \
+              -archivePath "$RUNNER_TEMP/app.xcarchive" -sdk iphoneos \
+              -disableAutomaticPackageResolution COMPILER_INDEX_STORE_ENABLE=NO archive 2>&1 \
+              | xcbeautify --renderer github-actions
+          }
+          for i in 1 2 3; do archive && exit 0; echo "archive attempt $i failed; retry in 20s"; sleep 20; done
+          exit 1
 
       - name: Export IPA
         run: |
@@ -106,8 +119,12 @@ jobs:
           </dict></plist>
           PLIST
           cd ios
-          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/app.xcarchive" \
-            -exportPath "$RUNNER_TEMP/export" -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist"
+          for i in 1 2 3; do
+            xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/app.xcarchive" \
+              -exportPath "$RUNNER_TEMP/export" -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" && exit 0
+            echo "export attempt $i failed; retry in 20s"; sleep 20
+          done
+          exit 1
 
       - name: Upload to TestFlight
         run: fastlane upload
