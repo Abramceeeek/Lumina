@@ -7,19 +7,33 @@ platform :ios do
   # Everything is driven by the App Store Connect API key — no devices, no Mac,
   # no manual portal steps.
   lane :beta do
-    setup_ci # temporary CI keychain for the signing identity
-
     api_key = app_store_connect_api_key(
       key_id: ENV["ASC_KEY_ID"],
       issuer_id: ENV["ASC_ISSUER_ID"],
       key_filepath: ENV["ASC_KEY_PATH"]
     )
 
+    # Explicit, unlocked, default keychain so the new signing identity installs.
+    keychain_name = "ci.keychain"
+    keychain_password = "ci_pass"
+    create_keychain(
+      name: keychain_name,
+      password: keychain_password,
+      default_keychain: true,
+      unlock: true,
+      timeout: 3600,
+      lock_when_sleeps: false
+    )
+
     # The App ID + App Store Connect app record are created once by hand (the API
     # key can't create apps without an Apple ID login). Everything below is headless.
 
     # Distribution certificate (created headlessly via the API if none exists).
-    cert(api_key: api_key)
+    cert(
+      api_key: api_key,
+      keychain_path: File.expand_path("~/Library/Keychains/#{keychain_name}-db"),
+      keychain_password: keychain_password
+    )
 
     # App Store provisioning profile — distribution type, needs no registered devices.
     sigh(api_key: api_key, app_identifier: APP_ID, platform: "ios")
