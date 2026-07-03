@@ -1,95 +1,146 @@
 # Lumina — Roadmap
 
-Phased build plan. See [CLAUDE.md](CLAUDE.md) for stack, architecture, tokens, and the leveling model.
+Phased build plan. See [CLAUDE.md](CLAUDE.md) for stack, architecture, schema, tokens,
+and the leveling model; see [STATUS.md](STATUS.md) for the test/QA guide.
 
-**Vision:** learn a language by reading short, personalized, real-world articles about the field you care about — difficulty rising as you improve. A **server agent finds & synthesizes** world news per field; the **phone app personalizes** it to your language, level, and reading time.
+**Vision:** learn a language by reading short, personalized, real-world articles about
+the field you care about — difficulty rising as you improve. A **server agent finds &
+synthesizes** world news per field; the **phone app personalizes** it to your language,
+level, and reading time.
 
-**Two parallel tracks** — **A (client)** and **B (server)** — wired together at **sync points (S)**. The client develops against `seed/` baseline articles so it's never blocked on the server.
+**Two parallel tracks** — **A (client)** and **B (server)** — wired together at
+**sync points (S)**. The client stays unblocked by generating/mocking articles until
+the server exposes a serving API.
 
-**Status:** ⬜ not started · 🟡 in progress · ✅ done — *everything is ⬜ today.*
+**Status:** ⬜ not started · 🟡 in progress/partial · ✅ done. Reflects `main` after ~40 merged PRs.
+
+---
+
+## Where we are today
+
+**Works end-to-end (on generated/mock or hosted AI):** sign up → cloud-persisted
+onboarding (fields + starting level) → a daily article about your topic at your level
+→ timer-gated read with highlight + glossable vocab → quiz → choose a branch that
+seeds tomorrow → Trail/Notes/Social/Profile screens → spaced-repetition "Memory Check"
+→ dual ladders advance. Multi-provider BYOK AI (Claude/Groq/Gemini/OpenRouter) with a
+hosted Edge-Function fallback and an offline mock. CI (typecheck + tests + web bundle +
+repo checks) gates every PR; Android APK and iOS→TestFlight build pipelines exist.
+
+**The one gap that matters most:** the **server pipeline synthesizes real briefs and
+writes baseline `articles`, but there is no ranking + HTTP serving API**, so the running
+app still *generates* the daily article rather than *pulling* a real server baseline.
+Closing that (sync-point **S2**) is the headline next step — see B4.
+
+**Not started:** on-device AI (A5/S3), pipeline hardening/monitoring (B5), a 2nd/3rd
+language and external beta (Phase D).
 
 ---
 
 ## Track A — Mobile client (Expo)
 
-### A0 · Scaffold & design system  ⬜
-Monorepo (pnpm) + Expo + TS + Expo Router + NativeWind. Copy prototype → `design-reference/`. `tokens.ts` (colors, type, fields, accent themes). Port primitives (Button/Card/Pill/Input/Logo/Header/Divider). Load Inter. Bottom-tab skeleton with the prototype's SVG icons.
-**Verify:** boots in Expo Go; tabs switch; a primitives gallery matches the prototype.
+### A0 · Scaffold & design system  ✅
+Expo + TS + Expo Router; prototype copied to `design-reference/`; `tokens.ts`
+(colors, type, fields, accent themes); primitives (Button/Card/Pill/Input/Logo/Header/
+Divider); Inter loaded; **custom `BottomNav`** (not NativeTabs). *(pnpm/NativeWind from
+the original plan were dropped: it's npm-per-package + `StyleSheet`.)*
 
-### A1 · Onboarding + Auth  ⬜
-Register → choose **language** + 3–5 **fields** → set starting **level**. Supabase Auth (email + Google). Persist to `profiles` + `interests` (incl. `language_level`, `field_levels`, `target_read_time`). → **needs S1**
-**Verify:** new user finishes all steps, lands on Today, stays signed in; `profiles` row exists.
+### A1 · Onboarding + Auth  ✅  (+ S1)
+Register → choose fields + starting level. Supabase Auth (email/password). Persists to
+`profiles` + `user_interests` + `user_field_levels` + `user_language_levels`; cloud and
+local modes both work.
 
-### A2 · Today flow (vs `seed/`)  ⬜
-Reader (timer-gated, highlight-to-save, glossable vocabulary) → Quiz (2 MC + 1 open) → Choose branch. Today sub-progress bar.
-**Verify:** full Read→Quiz→Choose loop on seed content; timer gates; highlight + a vocab word are captured.
+### A2 · Today flow  ✅
+Reader (timer-gated, highlight-to-save, glossable vocabulary) → Quiz (2 MC + 1 open) →
+Choose branch, with a 3-step progress bar. Runs against AI-generated/mock content
+(there is no `seed/` dir; the server serving API is still pending — see B4).
 
-### A3 · Trail / Notes / Social / Profile  ⬜
-Linear trail + draggable knowledge graph (`react-native-svg` + gestures). Notes (search + filter, vocab). Social (leaderboard, badges). Profile with **dual-ladder progress UI** + settings (language, reminder, theme, AI key entry).
-**Verify:** every prototype screen has a pixel-close RN counterpart; theme switching live-updates accent.
+### A3 · Trail / Notes / Social / Profile  ✅
+All five tabs implemented. Trail: linear timeline + draggable knowledge graph
+(`react-native-svg` + gestures). Notes: searchable highlights (cloud-synced). Social:
+real leaderboard via `get_leaderboard()` + earned badges. Profile: dual-ladder progress,
+settings, AI key entry.
 
-### A4 · Client AI personalization  ⬜
-`PersonalizerProvider` interface + `resolveProvider()`. BYOK (Anthropic/OpenAI/Gemini) via secure store; **hosted fallback** (Supabase Edge Fn). Rewrite a baseline article to language + level + reading time + focus; loading/streaming states; pre-personalize next on branch pick. → **enables S2**
-**Verify:** with no key, hosted fallback personalizes a seed baseline; adding a key switches provider; changing level/language visibly changes the text.
+### A4 · Client AI personalization  ✅  (enables S2)
+`Personalizer`/`Generator` interfaces + `resolve.ts`. **BYOK** (Anthropic/Groq/Gemini/
+OpenRouter) via secure store; **hosted fallback** (Supabase Edge Function); **offline
+mock**. Rewrites to language + level + reading time + focus.
 
-### A5 · On-device AI  ⬜ (dev build)
-`expo prebuild`/EAS. Apple Foundation Models (iOS 26+) + Gemini Nano (AICore Android) modules; capability detection; graceful degrade.
-**Verify:** on a supported device, an article personalizes fully **offline** on-device.
+### A5 · On-device AI  ⬜  (dev build)
+`expo prebuild`/EAS. Apple Foundation Models (iOS 26+) + Gemini Nano (Android) modules;
+capability detection; graceful degrade. Not started (needs a prebuild; see CLAUDE.md §3/§13).
 
-### A6 · Vocabulary & spaced repetition  ⬜
-Per-word vocab store; spaced-recall of words + concepts; "Memory Check" overlay; ladder promotion from recall.
-**Verify:** a due check fires a notification and advances the correct ladder.
+### A6 · Vocabulary & spaced repetition  ✅
+Per-article recall schedule (`spaced_rep.stage`: 1d→3d→7d→30d); "Memory Check" overlay;
+recall performance feeds ladder promotion.
 
 ---
 
 ## Track B — Server news-agent
 
-### B0 · Backend foundation  ⬜
-Supabase project + migrations + **RLS** for all tables (CLAUDE.md §). Seed the **field/sub-field taxonomy** (12 fields from the prototype). Enable **pgvector**.
-**Verify:** schema applies clean; RLS blocks cross-user reads; taxonomy queryable.
+### B0 · Backend foundation  ✅
+Supabase + 8 migrations + **RLS on all 19 tables**; 12-field taxonomy + finance
+sub-fields seeded; pgvector extension enabled.
 
-### B1 · Ingestion  ⬜
-Connectors for licensed sources (NewsAPI / NewsData / GDELT / RSS) into `raw_items` staging. Scheduled cron. `sources.terms_ok` enforced.
-**Verify:** a scheduled run pulls fresh items from ≥2 source types into staging.
+### B1 · Ingestion  🟡
+`ingest.ts` pulls headlines from **GDELT only** into `raw_items` (deduped by URL),
+scheduled daily by `ingest.yml`. **Remaining:** NewsAPI/NewsData/RSS connectors;
+enforce `sources.terms_ok`.
 
-### B2 · Research & synthesis agent  ⬜
-Cluster raw items; score world-importance; AI **synthesizes a neutral brief** per story (no republished copy) with source attribution; dedupe via embeddings.
-**Verify:** raw items collapse into deduped `stories` with synthesized briefs + importance scores + citations.
+### B2 · Research & synthesis agent  🟡
+`synthesize.ts` writes one Claude neutral brief per field per day into `stories` (+
+attribution/concepts/vocab). **Remaining:** cross-item clustering, world-importance
+ranking, embedding-based dedup (the `stories.embedding` column is unused).
 
-### B3 · Classification & enrichment  ⬜
-Tag stories into field → sub-field; extract key concepts, entities, **target vocabulary**; estimate base difficulty; store embeddings.
-**Verify:** each story carries ≥1 field tag, concept list, vocab list, and a base difficulty.
+### B3 · Classification & enrichment  🟡
+Concepts + target vocabulary are extracted during synthesis. **Remaining:** sub-field
+tagging, base-difficulty estimation, populating embeddings.
 
-### B4 · Baseline articles, ranking & serving API  ⬜
-Generate neutral **baseline articles** + branch options; rank **best-per-field-per-day**; expose serving API ("today's best for field X" + branches). → **enables S2**
-**Verify:** API returns a ranked baseline article + branches for a given field/day.
+### B4 · Baseline articles, ranking & serving API  🟡  (enables S2)
+`baseline.ts` turns each story into an `articles` row with a generated quiz + branches.
+**Remaining (the S2 blocker):** "best-per-field-per-day" ranking and an **HTTP serving
+API** the client pulls from.
 
 ### B5 · Scheduling, dedup & monitoring  ⬜
-Harden the daily pipeline; dedup windows; failure alerts; basic ops dashboard.
-**Verify:** pipeline runs unattended for several days; no dup stories; failures alert.
+Harden the daily pipeline: dedup windows, failure alerts, an ops view. Only the naive
+daily cron exists today.
 
 ---
 
 ## Sync points
 
-- **S1** (A1 + B0): client auth/profile writes to real Supabase. **Verify:** two devices on one account stay in sync.
-- **S2** (A4 + B4): client pulls a **real** baseline article and personalizes it end-to-end. **Verify:** the magic moment — real world news, rewritten to a chosen language + level, in <X s.
-- **S3** (A5): on-device personalization works offline on supported hardware.
+- **S1** (A1 + B0) ✅ — client auth/profile writes to real Supabase; two devices on one account stay in sync.
+- **S2** (A4 + B4) 🟡 — client *can* personalize a baseline, but no serving/ranking API means it isn't wired into the daily loop yet. **This is the priority.**
+- **S3** (A5) ⬜ — on-device personalization works offline on supported hardware.
 
 ---
 
-## Phase C — Integration  ⬜
-Full loop on real data across multiple fields; branching seeds the next day; dual ladders advance from real performance; English polished end-to-end.
-**Verify:** a tester completes several real days; both ladders move; trail/graph grow from real choices.
+## Phase C — Integration  🟡
+Full loop works on generated/mock data (branching seeds the next day; dual ladders
+advance; trail/graph grow from real choices). **Remaining:** run the same loop on **real
+server-synthesized data** across multiple fields once B4's serving API lands.
 
 ## Phase D — Beta & expand  ⬜
-Add a 2nd & 3rd language; tune leveling; EAS production builds; TestFlight + Play internal testing; crash/analytics.
-**Verify:** external testers complete a full day loop in ≥2 languages.
+Add a 2nd & 3rd language; tune leveling; crash/analytics. *(Build/release plumbing —
+EAS, Android APK, iOS→TestFlight via Fastlane — already exists; external testing does not.)*
 
 ---
 
+## CI/CD & infra  ✅  *(not in the original roadmap, shipped anyway)*
+`ci.yml` gates every PR (app/server/shared typecheck + tests + web bundle + repo-invariants
++ actionlint + edge-fn `deno check`; advisory `npm audit`). Manual `build-apk.yml` and
+`ios-testflight.yml`; scheduled `ingest.yml`. Branch protection requires the deterministic checks.
+
+---
+
+## Next up (priority order)
+1. **B4 → S2:** ranking + a serving API, and have the client pull a real baseline into the daily loop (the "magic moment").
+2. **B2/B3 depth:** clustering + importance ranking + embeddings so "today's best story" is actually the best.
+3. **B1 breadth:** add RSS/NewsAPI sources and enforce `terms_ok`.
+4. **B5:** pipeline monitoring + dedup windows before relying on it unattended.
+5. **A5/S3:** on-device AI (requires the prebuild).
+
 ## Open questions (revisit)
-- Pricing / premium scope (Career paths flagged Premium in the design).
+- Pricing / premium scope (Career paths were flagged Premium in the design).
 - Which languages after English, and in what order.
 - Hosted-fallback rate limits & cost ceiling before requiring BYOK.
-- Friend/social backend: real vs seeded demo for MVP.
+- When to switch the daily loop from client-generated to server-served (S2 cutover).

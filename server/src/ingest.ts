@@ -1,4 +1,5 @@
 import { db } from './db.js';
+import { parseSeendate } from './util.js';
 
 // Ingest from GDELT's free DOC 2.0 API. We pull only headlines + metadata (never
 // full article bodies), bucket-querying by field label, and store de-duplicated
@@ -28,14 +29,6 @@ async function fetchGdelt(query: string): Promise<GdeltArticle[]> {
   if (!res.ok) return [];
   const data = (await res.json().catch(() => null)) as { articles?: GdeltArticle[] } | null;
   return data?.articles ?? [];
-}
-
-// GDELT "seendate" is "YYYYMMDDTHHMMSSZ".
-function parseSeendate(s?: string): string | null {
-  if (!s || s.length < 15) return null;
-  const iso = `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}T${s.slice(9, 11)}:${s.slice(11, 13)}:${s.slice(13, 15)}Z`;
-  const t = Date.parse(iso);
-  return Number.isNaN(t) ? null : new Date(t).toISOString();
 }
 
 export async function ingest(): Promise<{ fetched: number; inserted: number }> {
