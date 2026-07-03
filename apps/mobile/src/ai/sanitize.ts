@@ -10,7 +10,13 @@ export function sanitizeQuiz(raw: unknown): QuizQuestion[] | undefined {
     const o = q as Record<string, unknown>;
     if (o.type === 'mc' && typeof o.q === 'string' && Array.isArray(o.opts) && o.opts.length >= 2) {
       const correct = Number(o.correct);
-      out.push({ type: 'mc', q: o.q, opts: o.opts.map(String), correct: Number.isInteger(correct) ? correct : 0 });
+      out.push({
+        type: 'mc',
+        q: o.q,
+        opts: o.opts.map(String),
+        correct: Number.isInteger(correct) ? correct : 0,
+        ...(typeof o.explanation === 'string' && o.explanation.trim() ? { explanation: o.explanation.trim() } : {}),
+      });
     } else if (o.type === 'open' && typeof o.q === 'string') {
       out.push({ type: 'open', q: o.q, placeholder: typeof o.placeholder === 'string' ? o.placeholder : 'Type your thoughts…' });
     }

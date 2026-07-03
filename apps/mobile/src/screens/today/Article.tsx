@@ -18,11 +18,30 @@ import type { VocabItem } from '@lumina/shared';
 import { addHighlightRemote } from '@/data/highlights';
 
 const READ_MINUTES = 5;
+const GEN_TIMEOUT_MS = 25000;
 
 type Content = { title: string; topic: string; body: string[] };
 
 function todayKey(): string {
   return new Date().toISOString().slice(0, 10);
+}
+
+// Reject if a promise doesn't settle in time, so a hung provider surfaces an error
+// (with a retry) instead of an endless spinner.
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error('timeout')), ms);
+    p.then(
+      (v) => {
+        clearTimeout(t);
+        resolve(v);
+      },
+      (e) => {
+        clearTimeout(t);
+        reject(e);
+      },
+    );
+  });
 }
 
 // A2 + generation: the daily article is generated for the user's topic at their
@@ -43,6 +62,9 @@ export function Article({ onFinish }: { onFinish: () => void }) {
   const [genLoading, setGenLoading] = useState(!cached);
   const [articleId, setArticleId] = useState<string | undefined>(cached?.articleId);
   const [vocab, setVocab] = useState<VocabItem[] | undefined>(cached?.vocabulary);
+  const [attempt, setAttempt] = useState(0);
+  const [genError, setGenError] = useState(false);
+  const [degraded, setDegraded] = useState(false);
 
   const totalSecs = READ_MINUTES * 60;
   const [progress, setProgress] = useState(0);
@@ -50,69 +72,88 @@ export function Article({ onFinish }: { onFinish: () => void }) {
   const [toast, setToast] = useState(false);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Generate today's article once.
+  // Generate today's article (re-runnable via `attempt`). On failure/timeout we
+  // surface an error with a retry instead of silently swapping in a sample.
   useEffect(() => {
-    if (content) return;
+    if (content && attempt === 0) return;
     let cancelled = false;
     (async () => {
       setGenLoading(true);
+      setGenError(false);
       try {
-        const field = await getPrimaryInterestField();
-        const focus = await nextFocus();
-        const levels = field ? await getFieldLevels(field.id) : { cefr: 'A1' as const, fieldLevel: 1 as const };
+        const produced = await withTimeout(
+          (async () => {
+            const field = await getPrimaryInterestField();
+            const focus = await nextFocus();
+            const levels = field ? await getFieldLevels(field.id) : { cefr: 'A1' as const, fieldLevel: 1 as const };
 
-        // Prefer a real server-synthesized baseline for today's field article; fall
-        // back to on-device generation (and for branched explorations).
-        const baseline = !nextTopic && field ? await getTodaysBaseline(field.id) : null;
+            // Prefer a real server-synthesized baseline for today's field article;
+            // fall back to on-device generation (and for branched explorations).
+            const baseline = !nextTopic && field ? await getTodaysBaseline(field.id) : null;
 
-        let c: Content;
-        let id: string | undefined;
-        let quiz = baseline?.quiz;
-        let vocabulary = baseline?.vocabulary;
-        let branches = baseline?.branches;
-        let usedFocus = focus;
+            let c: Content;
+            let id: string | undefined;
+            let quiz = baseline?.quiz;
+            let vocabulary = baseline?.vocabulary;
+            let branches = baseline?.branches;
+            let usedFocus = focus;
 
-        if (baseline && field) {
-          const p = await (await resolvePersonalizer()).personalize({
-            title: baseline.title,
-            body: baseline.body,
-            language: 'English',
-            difficulty,
-            targetMinutes: READ_MINUTES,
-            languageLevel: levels.cefr,
-            fieldLevel: levels.fieldLevel,
-            focus: baseline.focus ?? focus,
-          });
-          c = { title: baseline.title, topic: field.label, body: p.body.length ? p.body : baseline.body };
-          id = baseline.id; // a real article row already exists; read against it
-          usedFocus = baseline.focus ?? focus;
-        } else {
-          const topic = nextTopic ?? field?.label ?? SAMPLE_ARTICLE.topic;
-          const gen = await (await resolveGenerator()).generate({
-            topic,
-            difficulty,
-            language: 'English',
-            targetMinutes: READ_MINUTES,
-            languageLevel: levels.cefr,
-            fieldLevel: levels.fieldLevel,
-            focus,
-          });
-          c = { title: gen.title, topic: gen.topic, body: gen.body };
-          quiz = gen.quiz;
-          vocabulary = gen.vocabulary;
-          branches = gen.branches;
-          id = field
-            ? ((await saveGeneratedArticle({ fieldId: field.id, title: c.title, body: c.body, focus, quiz, vocabulary, branches })) ?? undefined)
-            : undefined;
-        }
+            if (baseline && field) {
+              const p = await (await resolvePersonalizer()).personalize({
+                title: baseline.title,
+                body: baseline.body,
+                language: 'English',
+                difficulty,
+                targetMinutes: READ_MINUTES,
+                languageLevel: levels.cefr,
+                fieldLevel: levels.fieldLevel,
+                focus: baseline.focus ?? focus,
+              });
+              c = { title: baseline.title, topic: field.label, body: p.body.length ? p.body : baseline.body };
+              id = baseline.id; // a real article row already exists; read against it
+              usedFocus = baseline.focus ?? focus;
+            } else {
+              const topic = nextTopic ?? field?.label ?? SAMPLE_ARTICLE.topic;
+              const gen = await (await resolveGenerator()).generate({
+                topic,
+                difficulty,
+                language: 'English',
+                targetMinutes: READ_MINUTES,
+                languageLevel: levels.cefr,
+                fieldLevel: levels.fieldLevel,
+                focus,
+              });
+              c = { title: gen.title, topic: gen.topic, body: gen.body };
+              quiz = gen.quiz;
+              vocabulary = gen.vocabulary;
+              branches = gen.branches;
+              id = field
+                ? ((await saveGeneratedArticle({ fieldId: field.id, title: c.title, body: c.body, focus, quiz, vocabulary, branches })) ?? undefined)
+                : undefined;
+            }
+            return { c, id, quiz, vocabulary, branches, usedFocus, fieldId: field?.id };
+          })(),
+          GEN_TIMEOUT_MS,
+        );
 
         if (cancelled) return;
-        setContent(c);
-        setArticleId(id);
-        setVocab(vocabulary);
-        setDailyArticle({ date: today, difficulty, ...c, articleId: id, focus: usedFocus, fieldId: field?.id, quiz, vocabulary, branches });
+        setContent(produced.c);
+        setArticleId(produced.id);
+        setVocab(produced.vocabulary);
+        setDegraded(false);
+        setDailyArticle({
+          date: today,
+          difficulty,
+          ...produced.c,
+          articleId: produced.id,
+          focus: produced.usedFocus,
+          fieldId: produced.fieldId,
+          quiz: produced.quiz,
+          vocabulary: produced.vocabulary,
+          branches: produced.branches,
+        });
       } catch {
-        if (!cancelled) setContent({ title: SAMPLE_ARTICLE.subtopic, topic: SAMPLE_ARTICLE.topic, body: SAMPLE_ARTICLE.body });
+        if (!cancelled) setGenError(true);
       } finally {
         if (!cancelled) setGenLoading(false);
       }
@@ -121,7 +162,22 @@ export function Article({ onFinish }: { onFinish: () => void }) {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [attempt]);
+
+  const retryGenerate = () => {
+    setContent(null);
+    setGenError(false);
+    setAttempt((a) => a + 1);
+  };
+
+  const readSample = () => {
+    setContent({ title: SAMPLE_ARTICLE.subtopic, topic: SAMPLE_ARTICLE.topic, body: SAMPLE_ARTICLE.body });
+    setVocab(undefined);
+    setArticleId(undefined);
+    setDegraded(true);
+    setGenError(false);
+    setGenLoading(false);
+  };
 
   // Reading timer (starts once the article is shown).
   useEffect(() => {
@@ -179,6 +235,22 @@ export function Article({ onFinish }: { onFinish: () => void }) {
     />
   );
 
+  if (genError && !content) {
+    return (
+      <View style={{ flex: 1 }}>
+        {header}
+        <View style={styles.loading}>
+          <Text style={styles.errorTitle}>Couldn&apos;t write today&apos;s article</Text>
+          <Text style={styles.errorText}>Check your connection or your AI key in Profile, then try again.</Text>
+          <View style={styles.errorActions}>
+            <Button label="Try again" onPress={retryGenerate} />
+            <Button variant="ghost" size="sm" label="Read a sample" onPress={readSample} />
+          </View>
+        </View>
+      </View>
+    );
+  }
+
   if (genLoading || !content) {
     return (
       <View style={{ flex: 1 }}>
@@ -196,6 +268,13 @@ export function Article({ onFinish }: { onFinish: () => void }) {
       {header}
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={[styles.article, { maxWidth: readWidth }]}>
+          {degraded ? (
+            <View style={styles.degradedBanner}>
+              <Text style={styles.degradedText}>
+                Sample article — today&apos;s personalized story couldn&apos;t be generated. Add or check your AI key in Profile.
+              </Text>
+            </View>
+          ) : null}
           <View style={styles.meta}>
             <Pill label={content.topic} />
             <Text style={styles.metaText}>· {READ_MINUTES} min read</Text>
@@ -279,6 +358,11 @@ export function Article({ onFinish }: { onFinish: () => void }) {
 const styles = StyleSheet.create({
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 40 },
   loadingText: { color: colors.textSec, fontSize: 14, fontFamily: fonts.regular },
+  errorTitle: { color: colors.text, fontSize: 18, fontFamily: fonts.semibold, textAlign: 'center' },
+  errorText: { color: colors.textSec, fontSize: 14, fontFamily: fonts.regular, textAlign: 'center', lineHeight: 20 },
+  errorActions: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8 },
+  degradedBanner: { backgroundColor: semantic.dangerBg, borderWidth: 1, borderColor: semantic.dangerBorder, borderRadius: radius.sm, padding: 12, marginBottom: 18 },
+  degradedText: { color: colors.textSec, fontSize: 13, fontFamily: fonts.regular, lineHeight: 18 },
   scroll: { paddingTop: 44, paddingHorizontal: 20, paddingBottom: 40 },
   article: { width: '100%', maxWidth: 680, alignSelf: 'center' },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
