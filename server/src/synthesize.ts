@@ -1,5 +1,6 @@
 import { db } from './db.js';
 import { callClaude, extractJson } from './anthropic.js';
+import { clamp01 } from './util.js';
 
 // Research/synthesis agent. For each field, gather today's ingested headlines and
 // have Claude identify the most significant story, then write an ORIGINAL neutral
@@ -17,8 +18,6 @@ type Brief = {
   concepts: string[];
   vocabulary: { word: string; definition: string }[];
 };
-
-const clamp01 = (n: number) => (Number.isNaN(n) ? 0.5 : Math.max(0, Math.min(1, n)));
 
 async function synthesizeBrief(field: string, titles: string[]): Promise<Brief | null> {
   const prompt = `You are a neutral news editor for a language-learning reader. Below are today's English headlines in the field of ${field}. Identify the single most significant story they point to, then write an ORIGINAL, balanced synthesis — do NOT copy any headline's wording; write fresh prose explaining the development and why it matters.

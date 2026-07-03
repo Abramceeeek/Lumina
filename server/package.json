@@ -7,7 +7,8 @@
     "ingest": "tsx src/run-ingest.ts",
     "synthesize": "tsx src/run-synthesize.ts",
     "baseline": "tsx src/run-baseline.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test src/__tests__/*.test.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.108.2"
