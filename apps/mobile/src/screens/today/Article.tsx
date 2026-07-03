@@ -14,6 +14,7 @@ import { resolveGenerator, resolvePersonalizer } from '@/ai/resolve';
 import { getPrimaryInterestField } from '@/data/profile';
 import { saveGeneratedArticle, recordRead, getTodaysBaseline } from '@/data/articles';
 import { nextFocus, getFieldLevels } from '@/data/ladder';
+import { getTrailStats } from '@/data/trail';
 import type { VocabItem } from '@lumina/shared';
 import { addHighlightRemote } from '@/data/highlights';
 
@@ -65,6 +66,8 @@ export function Article({ onFinish }: { onFinish: () => void }) {
   const [attempt, setAttempt] = useState(0);
   const [genError, setGenError] = useState(false);
   const [degraded, setDegraded] = useState(false);
+  const [note, setNote] = useState<string | undefined>(cached?.note);
+  const [streak, setStreak] = useState(0);
 
   const totalSecs = READ_MINUTES * 60;
   const [progress, setProgress] = useState(0);
@@ -97,6 +100,7 @@ export function Article({ onFinish }: { onFinish: () => void }) {
             let vocabulary = baseline?.vocabulary;
             let branches = baseline?.branches;
             let usedFocus = focus;
+            let providerNote: string | undefined;
 
             if (baseline && field) {
               const p = await (await resolvePersonalizer()).personalize({
@@ -112,6 +116,7 @@ export function Article({ onFinish }: { onFinish: () => void }) {
               c = { title: baseline.title, topic: field.label, body: p.body.length ? p.body : baseline.body };
               id = baseline.id; // a real article row already exists; read against it
               usedFocus = baseline.focus ?? focus;
+              providerNote = p.note;
             } else {
               const topic = nextTopic ?? field?.label ?? SAMPLE_ARTICLE.topic;
               const gen = await (await resolveGenerator()).generate({
@@ -127,11 +132,12 @@ export function Article({ onFinish }: { onFinish: () => void }) {
               quiz = gen.quiz;
               vocabulary = gen.vocabulary;
               branches = gen.branches;
+              providerNote = gen.note;
               id = field
                 ? ((await saveGeneratedArticle({ fieldId: field.id, title: c.title, body: c.body, focus, quiz, vocabulary, branches })) ?? undefined)
                 : undefined;
             }
-            return { c, id, quiz, vocabulary, branches, usedFocus, fieldId: field?.id };
+            return { c, id, quiz, vocabulary, branches, usedFocus, fieldId: field?.id, note: providerNote };
           })(),
           GEN_TIMEOUT_MS,
         );
@@ -140,12 +146,14 @@ export function Article({ onFinish }: { onFinish: () => void }) {
         setContent(produced.c);
         setArticleId(produced.id);
         setVocab(produced.vocabulary);
+        setNote(produced.note);
         setDegraded(false);
         setDailyArticle({
           date: today,
           difficulty,
           ...produced.c,
           articleId: produced.id,
+          note: produced.note,
           focus: produced.usedFocus,
           fieldId: produced.fieldId,
           quiz: produced.quiz,
@@ -173,6 +181,7 @@ export function Article({ onFinish }: { onFinish: () => void }) {
   const readSample = () => {
     setContent({ title: SAMPLE_ARTICLE.subtopic, topic: SAMPLE_ARTICLE.topic, body: SAMPLE_ARTICLE.body });
     setVocab(undefined);
+    setNote(undefined);
     setArticleId(undefined);
     setDegraded(true);
     setGenError(false);
@@ -212,6 +221,19 @@ export function Article({ onFinish }: { onFinish: () => void }) {
     [],
   );
 
+  // Real day streak for the header chip (hidden until there is one).
+  useEffect(() => {
+    let cancelled = false;
+    getTrailStats()
+      .then((s) => {
+        if (!cancelled) setStreak(s.dayStreak);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const saveHighlight = (text: string) => {
     if (!content) return;
     addHighlight({ quote: text, article: content.title, topic: content.topic });
@@ -226,10 +248,12 @@ export function Article({ onFinish }: { onFinish: () => void }) {
       right={
         <View style={styles.headerRight}>
           <DifficultyBadge />
-          <View style={styles.streak}>
-            <Text style={{ fontSize: 15 }}>🔥</Text>
-            <Text style={styles.streakText}>Day 1</Text>
-          </View>
+          {streak > 0 ? (
+            <View style={styles.streak}>
+              <Text style={{ fontSize: 15 }}>🔥</Text>
+              <Text style={styles.streakText}>Day {streak}</Text>
+            </View>
+          ) : null}
         </View>
       }
     />
@@ -279,6 +303,7 @@ export function Article({ onFinish }: { onFinish: () => void }) {
             <Pill label={content.topic} />
             <Text style={styles.metaText}>· {READ_MINUTES} min read</Text>
           </View>
+          {note ? <Text style={styles.aiNote}>{note}</Text> : null}
 
           <Text style={styles.title}>{content.title}</Text>
 
@@ -370,6 +395,7 @@ const styles = StyleSheet.create({
   streakText: { fontSize: 13, fontFamily: fonts.medium, color: colors.accent },
   meta: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 18 },
   metaText: { color: colors.textTer, fontSize: 13, fontFamily: fonts.regular },
+  aiNote: { color: colors.textTer, fontSize: 12, fontFamily: fonts.regular, marginTop: -10, marginBottom: 14 },
   title: { fontSize: 30, fontFamily: fonts.semibold, letterSpacing: -1, lineHeight: 36, color: colors.text, marginBottom: 16 },
   timerTrack: { height: 3, backgroundColor: colors.border, borderRadius: 2, overflow: 'hidden', marginBottom: 8 },
   timerCaption: { fontSize: 12, color: colors.textTer, fontStyle: 'italic', fontFamily: fonts.regular },

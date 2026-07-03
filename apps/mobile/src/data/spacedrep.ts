@@ -62,7 +62,10 @@ export async function recordRecall(opts: { id: string; passed: boolean; focus?: 
   if (!u.user) return;
   const uid = u.user.id;
   const { data: row } = await supabase.from('spaced_rep').select('stage').eq('id', opts.id).maybeSingle();
-  const stage = opts.passed ? Math.min((Number(row?.stage) || 0) + 1, INTERVAL_DAYS.length - 1) : 0;
+  // Lapse steps back one stage instead of resetting to 0 — residual memory survives
+  // a miss, and full resets pile up overdue reviews (FSRS/SM-2 lapse research).
+  const prev = Number(row?.stage) || 0;
+  const stage = opts.passed ? Math.min(prev + 1, INTERVAL_DAYS.length - 1) : Math.max(prev - 1, 0);
   await supabase.from('spaced_rep').update({ stage, due_at: dueDate(stage), last_score: opts.passed ? 5 : 2 }).eq('id', opts.id);
   await recomputeRetention(uid);
   if (opts.passed && opts.focus) await advanceLadder({ focus: opts.focus, fieldId: opts.fieldId, passed: true });

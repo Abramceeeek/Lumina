@@ -7,7 +7,7 @@ export const colors = {
   border: '#E5E3DF',
   text: '#1A1A1A',
   textSec: '#6B6860',
-  textTer: '#9E9C98',
+  textTer: '#75706C', // darkened from the prototype's #9E9C98 — that value was 2.65:1 on bg, WCAG AA needs 4.5:1
   accent: '#4A7C6F',
   accentLight: '#E6F0EE',
 } as const;

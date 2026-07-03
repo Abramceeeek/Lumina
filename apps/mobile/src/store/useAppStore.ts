@@ -12,6 +12,7 @@ export type DailyArticle = {
   title: string;
   body: string[];
   articleId?: string;
+  note?: string; // provider note ("Personalized by Claude…") — the AI-content disclosure
   focus?: Focus;
   fieldId?: string;
   quiz?: QuizQuestion[];

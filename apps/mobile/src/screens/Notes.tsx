@@ -10,8 +10,6 @@ import type { SavedHighlight } from '@/store/useAppStore';
 import { isSupabaseConfigured } from '@/data/supabase';
 import { listHighlightsRemote } from '@/data/highlights';
 
-const FILTERS = ['All', 'Finance', 'Psychology'];
-
 export function Notes() {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('All');
@@ -21,11 +19,13 @@ export function Notes() {
     if (isSupabaseConfigured) listHighlightsRemote().then(setRemote).catch(() => {});
   }, []);
   const seen = new Set<string>();
-  const all = [...userHls, ...remote, ...HIGHLIGHTS].filter((h) => {
+  // Sample highlights are demo-only: never mix them into a cloud-backed user's real list.
+  const all = [...userHls, ...remote, ...(isSupabaseConfigured ? [] : HIGHLIGHTS)].filter((h) => {
     if (seen.has(h.quote)) return false;
     seen.add(h.quote);
     return true;
   });
+  const filters = ['All', ...Array.from(new Set(all.map((h) => h.topic).filter(Boolean)))];
   const q = search.toLowerCase();
   const filtered = all.filter(
     (h) =>
@@ -49,7 +49,7 @@ export function Notes() {
           />
 
           <View style={styles.filters}>
-            {FILTERS.map((t) => {
+            {filters.map((t) => {
               const on = filter === t;
               return (
                 <Pressable key={t} onPress={() => setFilter(t)} accessibilityRole="tab" accessibilityState={{ selected: on }} accessibilityLabel={`Filter: ${t}`} style={[styles.filter, { borderColor: on ? colors.accent : colors.border, backgroundColor: on ? colors.accentLight : colors.card }]}>

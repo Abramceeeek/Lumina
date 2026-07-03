@@ -21,7 +21,7 @@ export function Difficulty({ onNext }: { onNext: (difficulty: Diff) => void }) {
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.wrap}>
           <View style={styles.head}>
-            <Text style={styles.step}>Step 3 of 3</Text>
+            <Text style={styles.step}>Step 2 of 2</Text>
             <Text style={styles.title}>How do you like to learn?</Text>
             <Text style={styles.sub}>You can change this at any time.</Text>
           </View>

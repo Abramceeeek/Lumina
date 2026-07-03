@@ -10,11 +10,13 @@ export function sanitizeQuiz(raw: unknown): QuizQuestion[] | undefined {
     const o = q as Record<string, unknown>;
     if (o.type === 'mc' && typeof o.q === 'string' && Array.isArray(o.opts) && o.opts.length >= 2) {
       const correct = Number(o.correct);
+      // Drop the question rather than guess: a wrong `correct` silently marks wrong answers right.
+      if (!Number.isInteger(correct) || correct < 0 || correct >= o.opts.length) continue;
       out.push({
         type: 'mc',
         q: o.q,
         opts: o.opts.map(String),
-        correct: Number.isInteger(correct) ? correct : 0,
+        correct,
         ...(typeof o.explanation === 'string' && o.explanation.trim() ? { explanation: o.explanation.trim() } : {}),
       });
     } else if (o.type === 'open' && typeof o.q === 'string') {
