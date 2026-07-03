@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import type { SavedHighlight } from '@/store/useAppStore';
+import { useBanner } from '@/store/useBanner';
 
 // Highlights persist to Supabase (cross-device). The highlights table has
 // quote + note; we pack the article title + topic into `note` as JSON so no
@@ -9,11 +10,12 @@ export async function addHighlightRemote(h: { quote: string; article: string; to
   if (!supabase) return;
   const { data } = await supabase.auth.getUser();
   if (!data.user) return;
-  await supabase.from('highlights').insert({
+  const { error } = await supabase.from('highlights').insert({
     user_id: data.user.id,
     quote: h.quote,
     note: JSON.stringify({ article: h.article, topic: h.topic }),
   });
+  if (error) useBanner.getState().show("Saved on this device — couldn't sync your highlight to the cloud.");
 }
 
 export async function listHighlightsRemote(): Promise<SavedHighlight[]> {

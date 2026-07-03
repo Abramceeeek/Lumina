@@ -42,11 +42,17 @@ export async function nextFocus(): Promise<Focus> {
   return next;
 }
 
-// On a passing quiz, advance the ladder the article targeted.
-export async function advanceLadder(opts: { focus: Focus; fieldId?: string | null; passed: boolean }): Promise<void> {
-  if (!supabase || !opts.passed) return;
+// What a passing quiz advanced (for the level-up toast). null = no change.
+export type LadderUp =
+  | { kind: 'language'; from: Cefr; to: Cefr }
+  | { kind: 'field'; from: FieldLevel; to: FieldLevel };
+
+// On a passing quiz, advance the ladder the article targeted. Returns the change
+// so the UI can show a level-up (or null when it no-ops / is already at the top).
+export async function advanceLadder(opts: { focus: Focus; fieldId?: string | null; passed: boolean }): Promise<LadderUp | null> {
+  if (!supabase || !opts.passed) return null;
   const { data: u } = await supabase.auth.getUser();
-  if (!u.user) return;
+  if (!u.user) return null;
   const uid = u.user.id;
 
   if (opts.focus === 'language') {
@@ -56,8 +62,11 @@ export async function advanceLadder(opts: { focus: Focus; fieldId?: string | nul
       .eq('user_id', uid)
       .eq('language', LANG)
       .maybeSingle();
-    const cefr = nextCefr((data?.cefr as Cefr) ?? 'A1');
-    await supabase.from('user_language_levels').upsert({ user_id: uid, language: LANG, cefr }, { onConflict: 'user_id,language' });
+    const from = (data?.cefr as Cefr) ?? 'A1';
+    const to = nextCefr(from);
+    if (to === from) return null; // already at C2
+    await supabase.from('user_language_levels').upsert({ user_id: uid, language: LANG, cefr: to }, { onConflict: 'user_id,language' });
+    return { kind: 'language', from, to };
   } else if (opts.fieldId) {
     const { data } = await supabase
       .from('user_field_levels')
@@ -65,9 +74,13 @@ export async function advanceLadder(opts: { focus: Focus; fieldId?: string | nul
       .eq('user_id', uid)
       .eq('field_id', opts.fieldId)
       .maybeSingle();
-    const level = nextFieldLevel((data?.level as FieldLevel) ?? 1);
-    await supabase.from('user_field_levels').upsert({ user_id: uid, field_id: opts.fieldId, level }, { onConflict: 'user_id,field_id' });
+    const from = (data?.level as FieldLevel) ?? 1;
+    const to = nextFieldLevel(from);
+    if (to === from) return null; // already at Professional
+    await supabase.from('user_field_levels').upsert({ user_id: uid, field_id: opts.fieldId, level: to }, { onConflict: 'user_id,field_id' });
+    return { kind: 'field', from, to };
   }
+  return null;
 }
 
 // Both ladders for display in Profile.

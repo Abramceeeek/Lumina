@@ -10,7 +10,7 @@ import { SAMPLE_QUIZ } from '@/data/sample';
 import { mcCount, mcScore, allMcAnswered } from '@/lib/quiz';
 import { useAppStore } from '@/store/useAppStore';
 import { saveQuizResponse } from '@/data/quizResponses';
-import { advanceLadder } from '@/data/ladder';
+import { advanceLadder, type LadderUp } from '@/data/ladder';
 import { scheduleRecall } from '@/data/spacedrep';
 
 export function Quiz({ onFinish }: { onFinish: () => void }) {
@@ -22,6 +22,8 @@ export function Quiz({ onFinish }: { onFinish: () => void }) {
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [openText, setOpenText] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const [levelUp, setLevelUp] = useState<LadderUp | null>(null);
+  const [reflected, setReflected] = useState(false);
 
   const total = mcCount(quiz);
   const correct = mcScore(quiz, answers);
@@ -30,14 +32,17 @@ export function Quiz({ onFinish }: { onFinish: () => void }) {
   const finishTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (finishTimer.current) clearTimeout(finishTimer.current); }, []);
 
-  const submit = () => {
+  const submit = async () => {
     setSubmitted(true);
+    setReflected(openText.trim().length > 0);
     void saveQuizResponse(articleId, { answers, mcScore: correct, reflection: openText });
-    // A passing score (all MC correct) advances the ladder this article targeted.
-    if (focus) void advanceLadder({ focus, fieldId, passed: total > 0 && correct === total });
     // Schedule this article to resurface for spaced-repetition recall.
     void scheduleRecall(articleId);
-    finishTimer.current = setTimeout(onFinish, 1200);
+    // A passing score (all MC correct) advances the ladder this article targeted;
+    // show the level-up so the reward is visible.
+    const up = focus ? await advanceLadder({ focus, fieldId, passed: total > 0 && correct === total }) : null;
+    setLevelUp(up);
+    finishTimer.current = setTimeout(onFinish, up ? 2400 : 1200);
   };
 
   return (
@@ -58,6 +63,7 @@ export function Quiz({ onFinish }: { onFinish: () => void }) {
                   {q.q}
                 </Text>
                 {q.type === 'mc' ? (
+                  <>
                   <View style={{ gap: 8 }}>
                     {q.opts.map((opt, oi) => {
                       const picked = answers[qi] === oi;
@@ -80,6 +86,8 @@ export function Quiz({ onFinish }: { onFinish: () => void }) {
                       );
                     })}
                   </View>
+                    {submitted && q.explanation ? <Text style={styles.explain}>{q.explanation}</Text> : null}
+                  </>
                 ) : (
                   <TextInput
                     value={openText}
@@ -96,9 +104,20 @@ export function Quiz({ onFinish }: { onFinish: () => void }) {
           </View>
 
           {submitted ? (
-            <Text style={styles.result}>
-              ✓ {correct === total ? 'Perfect score!' : correct === 1 ? 'Good effort!' : 'Keep reading!'} Moving on…
-            </Text>
+            <View style={styles.resultBox}>
+              <Text style={styles.result}>
+                ✓ {correct === total ? 'Perfect score!' : correct === 1 ? 'Good effort!' : 'Keep reading!'}
+              </Text>
+              {levelUp ? (
+                <Text style={styles.levelUp}>
+                  {levelUp.kind === 'language'
+                    ? `Language level ${levelUp.from} → ${levelUp.to} 🎉`
+                    : `Field level ${levelUp.from} → ${levelUp.to} 🎉`}
+                </Text>
+              ) : null}
+              {reflected ? <Text style={styles.reflectAck}>Your reflection&apos;s saved — it shapes tomorrow&apos;s article.</Text> : null}
+              <Text style={styles.movingOn}>Moving on…</Text>
+            </View>
           ) : (
             <View style={styles.footer}>
               <Button label="See what's next" onPress={submit} disabled={!answered}>
@@ -122,6 +141,11 @@ const styles = StyleSheet.create({
   qnum: { color: colors.textTer, fontSize: 13, fontFamily: fonts.regular },
   opt: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: radius.sm, borderWidth: 1.5 },
   textarea: { minHeight: 72, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, padding: 12, fontSize: 14, fontFamily: fonts.regular, color: colors.text, backgroundColor: semantic.surfaceSubtle, textAlignVertical: 'top', lineHeight: 22 },
-  result: { marginTop: 28, textAlign: 'center', color: colors.accent, fontSize: 15, fontFamily: fonts.medium },
+  resultBox: { marginTop: 28, alignItems: 'center', gap: 6 },
+  result: { textAlign: 'center', color: colors.accent, fontSize: 15, fontFamily: fonts.medium },
+  levelUp: { textAlign: 'center', color: colors.accent, fontSize: 16, fontFamily: fonts.semibold },
+  reflectAck: { textAlign: 'center', color: colors.textSec, fontSize: 13, fontFamily: fonts.regular },
+  movingOn: { textAlign: 'center', color: colors.textTer, fontSize: 13, fontFamily: fonts.regular, marginTop: 2 },
+  explain: { marginTop: 10, color: colors.textSec, fontSize: 13, fontFamily: fonts.regular, lineHeight: 19 },
   footer: { marginTop: 28, flexDirection: 'row', justifyContent: 'flex-end' },
 });

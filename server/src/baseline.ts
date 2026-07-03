@@ -20,7 +20,7 @@ async function genQuizAndBranches(title: string, synthesis: string): Promise<{ q
 
 ${synthesis}
 
-Respond with ONLY JSON (no fences): {"quiz": [{"type":"mc","q":string,"opts":[string,string,string,string],"correct":number},{"type":"mc","q":string,"opts":[string,string,string,string],"correct":number},{"type":"open","q":string,"placeholder":string}], "branches": [{"title":string,"description":string}]}. "branches": 4-5 related threads to explore next; "correct" is the 0-based index.`;
+Respond with ONLY JSON (no fences): {"quiz": [{"type":"mc","q":string,"opts":[string,string,string,string],"correct":number,"explanation":string},{"type":"mc","q":string,"opts":[string,string,string,string],"correct":number,"explanation":string},{"type":"open","q":string,"placeholder":string}], "branches": [{"title":string,"description":string}]}. "branches": 4-5 related threads to explore next; "correct" is the 0-based index; "explanation" is one short sentence on why the correct option is right.`;
   try {
     const obj = extractJson(await callClaude(prompt, 1200));
     return {

@@ -7,6 +7,7 @@ import { Header } from '@/components/Header';
 import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
 import { getAiConfig, setAiConfig, clearAiConfig } from '@/ai/keyStore';
+import { testProviderKey } from '@/ai/llm';
 import { PROVIDERS, providerInfo, type ProviderId, type AiConfig } from '@/ai/catalog';
 import { signOut } from '@/data/auth';
 import { isSupabaseConfigured } from '@/data/supabase';
@@ -31,6 +32,8 @@ export function Profile() {
   const [provider, setProvider] = useState<ProviderId>('anthropic');
   const [keyInput, setKeyInput] = useState('');
   const [modelInput, setModelInput] = useState('');
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
   const [ladders, setLadders] = useState<{ cefr: string; fields: { label: string; level: number }[] } | null>(null);
   const [retention, setRetention] = useState(0);
   useEffect(() => {
@@ -41,14 +44,32 @@ export function Profile() {
     getLadders().then(setLadders);
     getRetention().then(setRetention);
   }, []);
+  const draftConfig = (): AiConfig => ({ provider, key: keyInput.trim(), ...(modelInput.trim() ? { model: modelInput.trim() } : {}) });
+
+  const testKey = async () => {
+    const key = keyInput.trim();
+    if (!key) return;
+    setTesting(true);
+    setTestResult(null);
+    try {
+      await testProviderKey(draftConfig());
+      setTestResult({ ok: true, msg: '✓ Key works — you can save it.' });
+    } catch (e) {
+      setTestResult({ ok: false, msg: `✗ ${e instanceof Error ? e.message : 'Key check failed.'}` });
+    } finally {
+      setTesting(false);
+    }
+  };
+
   const saveKey = async () => {
     const key = keyInput.trim();
     if (!key) return;
-    const cfg: AiConfig = { provider, key, ...(modelInput.trim() ? { model: modelInput.trim() } : {}) };
+    const cfg = draftConfig();
     await setAiConfig(cfg);
     setSavedConfig(cfg);
     setKeyInput('');
     setModelInput('');
+    setTestResult(null);
   };
   const removeKey = async () => {
     await clearAiConfig();
@@ -127,6 +148,9 @@ export function Profile() {
 
           <Text style={styles.h3}>Settings</Text>
           <View style={styles.settings}>
+            <SettingRow label="Sync">
+              <Text style={styles.val}>{isSupabaseConfigured ? 'Cloud-backed' : 'This device only'}</Text>
+            </SettingRow>
             <SettingRow label="Language">
               <Text style={styles.val}>English</Text>
             </SettingRow>
@@ -186,7 +210,13 @@ export function Profile() {
                 <View style={{ marginTop: 10, gap: 8 }}>
                   <Input placeholder={providerInfo(provider).hint} value={keyInput} onChangeText={setKeyInput} secureTextEntry autoCapitalize="none" accessibilityLabel={`${providerInfo(provider).label} API key`} />
                   <Input placeholder={`Model (optional) — ${providerInfo(provider).defaultModel}`} value={modelInput} onChangeText={setModelInput} autoCapitalize="none" accessibilityLabel="Model override" />
-                  <Button size="sm" label="Save" onPress={saveKey} disabled={!keyInput.trim()} style={{ alignSelf: 'flex-start' }} />
+                  <View style={styles.keyActions}>
+                    <Button size="sm" label="Save" onPress={saveKey} disabled={!keyInput.trim()} />
+                    <Button variant="ghost" size="sm" label={testing ? 'Testing…' : 'Test key'} onPress={testKey} disabled={!keyInput.trim() || testing} />
+                  </View>
+                  {testResult ? (
+                    <Text style={[styles.testResult, { color: testResult.ok ? colors.accent : semantic.danger }]}>{testResult.msg}</Text>
+                  ) : null}
                 </View>
               </>
             )}
@@ -256,6 +286,8 @@ const styles = StyleSheet.create({
   provChipText: { fontSize: 12, color: colors.textSec, fontFamily: fonts.medium },
   provChipTextActive: { color: colors.accent },
   aiHelp: { fontSize: 12, color: colors.textTer, fontFamily: fonts.regular, marginTop: 10 },
+  keyActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  testResult: { fontSize: 13, fontFamily: fonts.medium, lineHeight: 18 },
   settings: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: radius.card, overflow: 'hidden' },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, paddingHorizontal: 18 },
   rowBorder: { borderBottomWidth: 1, borderBottomColor: colors.border },

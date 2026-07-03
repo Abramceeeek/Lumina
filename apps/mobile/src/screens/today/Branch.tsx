@@ -19,6 +19,9 @@ export function Branch({ onDone }: { onDone: () => void }) {
   const setNextTopic = useAppStore((s) => s.setNextTopic);
   const setCompletedDate = useAppStore((s) => s.setCompletedDate);
   const articleId = useAppStore((s) => s.dailyArticle?.articleId);
+  const focus = useAppStore((s) => s.dailyArticle?.focus);
+  const topic = useAppStore((s) => s.dailyArticle?.topic);
+  const articleTitle = useAppStore((s) => s.dailyArticle?.title);
   const articleBranches = useAppStore((s) => s.dailyArticle?.branches);
   const branches = articleBranches?.length
     ? articleBranches.map((b, i) => ({ id: `g${i}`, title: b.title, desc: b.description }))
@@ -42,13 +45,22 @@ export function Branch({ onDone }: { onDone: () => void }) {
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <View style={styles.wrap}>
           <View style={styles.crumb}>
-            <Text style={styles.crumbTer}>Finance</Text>
+            <Text style={styles.crumbTer}>{topic ?? 'Today'}</Text>
             <ChevronRight />
-            <Text style={styles.crumbSec}>Compound Interest</Text>
+            <Text style={styles.crumbSec} numberOfLines={1}>
+              {articleTitle ?? "Today's article"}
+            </Text>
           </View>
 
           <Text style={styles.title}>Where do you want to go next?</Text>
           <Text style={styles.sub}>Each path builds on what you just read. Your next article arrives tomorrow.</Text>
+          {focus ? (
+            <Text style={styles.focusNote}>
+              {focus === 'language'
+                ? 'Today pushed your language. Tomorrow goes deeper into the field.'
+                : 'Today went deeper into the field. Tomorrow pushes your language.'}
+            </Text>
+          ) : null}
 
           <View style={styles.grid}>
             {branches.map((b) => {
@@ -102,7 +114,8 @@ const styles = StyleSheet.create({
   crumbTer: { fontSize: 13, color: colors.textTer, fontFamily: fonts.regular },
   crumbSec: { fontSize: 13, color: colors.textSec, fontFamily: fonts.medium },
   title: { fontSize: 26, fontFamily: fonts.semibold, letterSpacing: -0.8, marginBottom: 8, color: colors.text },
-  sub: { color: colors.textSec, fontSize: 15, lineHeight: 24, fontFamily: fonts.regular, marginBottom: 24 },
+  sub: { color: colors.textSec, fontSize: 15, lineHeight: 24, fontFamily: fonts.regular, marginBottom: 16 },
+  focusNote: { fontSize: 13, color: colors.accent, fontFamily: fonts.medium, backgroundColor: colors.accentLight, borderRadius: radius.sm, paddingVertical: 8, paddingHorizontal: 12, lineHeight: 18, marginBottom: 24 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   branchCard: { flexBasis: '47%', flexGrow: 1 },
   branchHead: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 6, gap: 8 },

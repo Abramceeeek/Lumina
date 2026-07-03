@@ -55,8 +55,8 @@ ${focusLine(i.focus, i.languageLevel, i.fieldLevel)}
 Adjust vocabulary and sentence complexity appropriately. Make it genuinely interesting and self-contained.
 Then add learning scaffolding drawn from THIS article.
 Respond with ONLY a JSON object (no markdown fences, no preamble):
-{"title": string, "body": string[], "vocabulary": [{"word": string, "definition": string}], "quiz": [{"type":"mc","q":string,"opts":[string,string,string,string],"correct":number},{"type":"mc","q":string,"opts":[string,string,string,string],"correct":number},{"type":"open","q":string,"placeholder":string}], "branches": [{"title":string,"description":string}]}
-"vocabulary": 4-6 key terms from the article. "quiz": exactly two multiple-choice then one open reflection; "correct" is the 0-based index of the right option. "branches": 4-5 related next topics to explore.`;
+{"title": string, "body": string[], "vocabulary": [{"word": string, "definition": string}], "quiz": [{"type":"mc","q":string,"opts":[string,string,string,string],"correct":number,"explanation":string},{"type":"mc","q":string,"opts":[string,string,string,string],"correct":number,"explanation":string},{"type":"open","q":string,"placeholder":string}], "branches": [{"title":string,"description":string}]}
+"vocabulary": 4-6 key terms from the article. "quiz": exactly two multiple-choice then one open reflection; "correct" is the 0-based index of the right option; "explanation" is one short sentence saying why the correct option is right (so the reader learns from it). "branches": 4-5 related next topics to explore.`;
 }
 
 function parseGenerated(text: string, topic: string): Generated {
@@ -123,6 +123,16 @@ function makeCall(cfg: AiConfig, model: string): LlmCall {
     default: // groq, openrouter — OpenAI-compatible
       return (p, m) => callOpenAiCompat(info.baseUrl!, cfg.key, model, p, m);
   }
+}
+
+// Validate a BYOK key/model with a tiny request. Resolves if the provider accepts
+// the credentials; throws (with the provider's HTTP error) otherwise. Used by the
+// Profile "Test key" button so users learn a key is bad before relying on it.
+export async function testProviderKey(cfg: AiConfig): Promise<void> {
+  const info = providerInfo(cfg.provider);
+  const model = (cfg.model && cfg.model.trim()) || info.defaultModel;
+  const call = makeCall(cfg, model);
+  await call('Reply with the single word OK.', 8);
 }
 
 // ── factory ─────────────────────────────────────────────────────────────────
