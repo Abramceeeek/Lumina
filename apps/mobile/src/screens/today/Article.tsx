@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ScrollView, View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
-import { colors, radius, semantic } from '@/design/tokens';
+import { colors, radius, semantic, TOPICS } from '@/design/tokens';
 import { fonts } from '@/design/typography';
 import { Header } from '@/components/Header';
 import { Pill } from '@/components/Pill';
@@ -15,6 +15,7 @@ import { getPrimaryInterestField } from '@/data/profile';
 import { saveGeneratedArticle, recordRead, getTodaysBaseline } from '@/data/articles';
 import { nextFocus, getFieldLevels } from '@/data/ladder';
 import { getTrailStats } from '@/data/trail';
+import { getLatestReflection } from '@/data/quizResponses';
 import type { VocabItem } from '@lumina/shared';
 import { addHighlightRemote } from '@/data/highlights';
 
@@ -45,6 +46,25 @@ function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
   });
 }
 
+// Honest read estimate from actual length (~200 WPM), clamped to 2–15 minutes —
+// "5 min read" was a constant regardless of what the model produced.
+function estMinutesFor(body: string[]): number {
+  const words = body.join(' ').split(/\s+/).filter(Boolean).length;
+  return Math.max(2, Math.min(15, Math.round(words / 200) || 2));
+}
+
+// One catch handles every failure kind — tell the user which one actually happened.
+function describeGenError(e: unknown): string {
+  const msg = e instanceof Error ? e.message : '';
+  if (msg === 'timeout')
+    return 'Generation timed out after 25 seconds — usually a slow connection or a stalled provider. Try again, or check your AI key in Profile.';
+  const status = msg.match(/\b(401|403|429|5\d\d)\b/)?.[1];
+  if (status === '401' || status === '403') return 'Your AI key was rejected by the provider. Check or replace it in Profile.';
+  if (status === '429') return 'Your AI provider is rate-limiting requests. Wait a minute, then try again.';
+  if (/network/i.test(msg)) return 'No connection. Check your network and try again.';
+  return 'Something went wrong while writing the article. Try again, or read a sample.';
+}
+
 // A2 + generation: the daily article is generated for the user's topic at their
 // level (cached per day + difficulty), then read with a finish-timer gate and
 // long-press highlights.
@@ -56,6 +76,8 @@ export function Article({ onFinish }: { onFinish: () => void }) {
   const nextTopic = useAppStore((s) => s.nextTopic);
   const fontSize = useAppStore((s) => s.fontSize);
   const readWidth = useAppStore((s) => s.readWidth);
+  const interests = useAppStore((s) => s.interests);
+  const setReadSecs = useAppStore((s) => s.setReadSecs);
 
   const today = todayKey();
   const cached = dailyArticle && dailyArticle.date === today && dailyArticle.difficulty === difficulty ? dailyArticle : null;
@@ -69,9 +91,17 @@ export function Article({ onFinish }: { onFinish: () => void }) {
   const [note, setNote] = useState<string | undefined>(cached?.note);
   const [streak, setStreak] = useState(0);
 
-  const totalSecs = READ_MINUTES * 60;
-  const [progress, setProgress] = useState(0);
-  const [timerDone, setTimerDone] = useState(false);
+  const estMinutes = content ? estMinutesFor(content.body) : READ_MINUTES;
+  const totalSecs = estMinutes * 60;
+  // Seconds read survive tab switches and app restarts (persisted with dailyArticle).
+  const secsRef = useRef(cached?.readSecs ?? 0);
+  const [progress, setProgress] = useState(() => {
+    const t = cached ? estMinutesFor(cached.body) * 60 : READ_MINUTES * 60;
+    return Math.min(100, ((cached?.readSecs ?? 0) / t) * 100);
+  });
+  const [timerDone, setTimerDone] = useState(cached ? (cached.readSecs ?? 0) >= estMinutesFor(cached.body) * 60 : false);
+  const [loadSecs, setLoadSecs] = useState(0);
+  const [genErrorMsg, setGenErrorMsg] = useState('');
   const [toast, setToast] = useState(false);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -118,7 +148,8 @@ export function Article({ onFinish }: { onFinish: () => void }) {
               usedFocus = baseline.focus ?? focus;
               providerNote = p.note;
             } else {
-              const topic = nextTopic ?? field?.label ?? SAMPLE_ARTICLE.topic;
+              const topic = nextTopic ?? field?.label ?? TOPICS.find((t) => t.id === interests[0])?.label ?? SAMPLE_ARTICLE.topic;
+              const priorReflection = (await getLatestReflection()) ?? undefined;
               const gen = await (await resolveGenerator()).generate({
                 topic,
                 difficulty,
@@ -127,6 +158,7 @@ export function Article({ onFinish }: { onFinish: () => void }) {
                 languageLevel: levels.cefr,
                 fieldLevel: levels.fieldLevel,
                 focus,
+                priorReflection,
               });
               c = { title: gen.title, topic: gen.topic, body: gen.body };
               quiz = gen.quiz;
@@ -148,6 +180,9 @@ export function Article({ onFinish }: { onFinish: () => void }) {
         setVocab(produced.vocabulary);
         setNote(produced.note);
         setDegraded(false);
+        secsRef.current = 0;
+        setProgress(0);
+        setTimerDone(false);
         setDailyArticle({
           date: today,
           difficulty,
@@ -160,8 +195,11 @@ export function Article({ onFinish }: { onFinish: () => void }) {
           vocabulary: produced.vocabulary,
           branches: produced.branches,
         });
-      } catch {
-        if (!cancelled) setGenError(true);
+      } catch (e) {
+        if (!cancelled) {
+          setGenError(true);
+          setGenErrorMsg(describeGenError(e));
+        }
       } finally {
         if (!cancelled) setGenLoading(false);
       }
@@ -188,22 +226,37 @@ export function Article({ onFinish }: { onFinish: () => void }) {
     setGenLoading(false);
   };
 
-  // Reading timer (starts once the article is shown).
+  // Reading timer (starts once the article is shown). Progress is persisted every
+  // 10s and on unmount, so an interruption resumes instead of resetting to zero.
   useEffect(() => {
     if (genLoading || !content || timerDone) return;
     const id = setInterval(() => {
-      setProgress((p) => {
-        const next = p + 100 / totalSecs;
-        if (next >= 100) {
-          clearInterval(id);
-          setTimerDone(true);
-          return 100;
-        }
-        return next;
-      });
+      secsRef.current += 1;
+      if (secsRef.current >= totalSecs) {
+        clearInterval(id);
+        setTimerDone(true);
+        setProgress(100);
+        setReadSecs(totalSecs);
+        return;
+      }
+      if (secsRef.current % 10 === 0) setReadSecs(secsRef.current);
+      setProgress((secsRef.current / totalSecs) * 100);
     }, 1000);
+    return () => {
+      clearInterval(id);
+      setReadSecs(secsRef.current);
+    };
+  }, [genLoading, content, timerDone, totalSecs, setReadSecs]);
+
+  // Staged loading copy so a long generation doesn't read as a hang.
+  useEffect(() => {
+    if (!genLoading) {
+      setLoadSecs(0);
+      return;
+    }
+    const id = setInterval(() => setLoadSecs((s) => s + 1), 1000);
     return () => clearInterval(id);
-  }, [genLoading, content, timerDone, totalSecs]);
+  }, [genLoading]);
 
   // Record the read once the timer completes (one row per article, this session).
   const readRecorded = useRef(false);
@@ -265,7 +318,7 @@ export function Article({ onFinish }: { onFinish: () => void }) {
         {header}
         <View style={styles.loading}>
           <Text style={styles.errorTitle}>Couldn&apos;t write today&apos;s article</Text>
-          <Text style={styles.errorText}>Check your connection or your AI key in Profile, then try again.</Text>
+          <Text style={styles.errorText}>{genErrorMsg || 'Check your connection or your AI key in Profile, then try again.'}</Text>
           <View style={styles.errorActions}>
             <Button label="Try again" onPress={retryGenerate} />
             <Button variant="ghost" size="sm" label="Read a sample" onPress={readSample} />
@@ -281,7 +334,13 @@ export function Article({ onFinish }: { onFinish: () => void }) {
         {header}
         <View style={styles.loading}>
           <ActivityIndicator color={colors.accent} />
-          <Text style={styles.loadingText}>Writing today&apos;s article…</Text>
+          <Text style={styles.loadingText}>
+            {loadSecs < 8
+              ? 'Writing today’s article…'
+              : loadSecs < 16
+                ? 'Still writing — personalizing to your level…'
+                : 'Almost there — long generations can take up to 25 seconds.'}
+          </Text>
         </View>
       </View>
     );
@@ -301,7 +360,7 @@ export function Article({ onFinish }: { onFinish: () => void }) {
           ) : null}
           <View style={styles.meta}>
             <Pill label={content.topic} />
-            <Text style={styles.metaText}>· {READ_MINUTES} min read</Text>
+            <Text style={styles.metaText}>· {estMinutes} min read</Text>
           </View>
           {note ? <Text style={styles.aiNote}>{note}</Text> : null}
 

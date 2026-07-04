@@ -112,7 +112,7 @@ export function Quiz({ onFinish }: { onFinish: () => void }) {
                       : `Field level ${levelUp.from} → ${levelUp.to} 🎉`}
                   </Text>
                 ) : null}
-                {reflected ? <Text style={styles.reflectAck}>Your reflection&apos;s saved.</Text> : null}
+                {reflected ? <Text style={styles.reflectAck}>Your reflection&apos;s saved — tomorrow&apos;s article can build on it.</Text> : null}
               </View>
               <View style={styles.footer}>
                 <Button label="Continue" onPress={onFinish}>
