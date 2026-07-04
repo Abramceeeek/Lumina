@@ -18,7 +18,7 @@ export function Interests({ onNext }: { onNext: (selected: string[]) => void }) 
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.wrap}>
           <View style={styles.head}>
-            <Text style={styles.step}>Step 2 of 3</Text>
+            <Text style={styles.step}>Step 1 of 2</Text>
             <Text style={styles.title}>What do you want to learn?</Text>
             <Text style={styles.sub}>Pick 3–5 topics. We&apos;ll start with one and let you branch from there.</Text>
           </View>

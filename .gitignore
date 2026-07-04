@@ -39,3 +39,6 @@ Thumbs.db
 .idea/
 .vscode/
 *.tsbuildinfo
+
+# graphify knowledge-graph output (generated)
+graphify-out/

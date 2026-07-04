@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { ScrollView, View, Text, Pressable, TextInput, StyleSheet } from 'react-native';
 import { colors, radius, semantic } from '@/design/tokens';
 import { fonts } from '@/design/typography';
@@ -29,9 +29,6 @@ export function Quiz({ onFinish }: { onFinish: () => void }) {
   const correct = mcScore(quiz, answers);
   const answered = allMcAnswered(quiz, answers);
 
-  const finishTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => { if (finishTimer.current) clearTimeout(finishTimer.current); }, []);
-
   const submit = async () => {
     setSubmitted(true);
     setReflected(openText.trim().length > 0);
@@ -42,7 +39,6 @@ export function Quiz({ onFinish }: { onFinish: () => void }) {
     // show the level-up so the reward is visible.
     const up = focus ? await advanceLadder({ focus, fieldId, passed: total > 0 && correct === total }) : null;
     setLevelUp(up);
-    finishTimer.current = setTimeout(onFinish, up ? 2400 : 1200);
   };
 
   return (
@@ -104,20 +100,26 @@ export function Quiz({ onFinish }: { onFinish: () => void }) {
           </View>
 
           {submitted ? (
-            <View style={styles.resultBox}>
-              <Text style={styles.result}>
-                ✓ {correct === total ? 'Perfect score!' : correct === 1 ? 'Good effort!' : 'Keep reading!'}
-              </Text>
-              {levelUp ? (
-                <Text style={styles.levelUp}>
-                  {levelUp.kind === 'language'
-                    ? `Language level ${levelUp.from} → ${levelUp.to} 🎉`
-                    : `Field level ${levelUp.from} → ${levelUp.to} 🎉`}
+            <>
+              <View style={styles.resultBox}>
+                <Text style={styles.result}>
+                  ✓ {correct === total ? 'Perfect score!' : correct === 1 ? 'Good effort!' : 'Keep reading!'}
                 </Text>
-              ) : null}
-              {reflected ? <Text style={styles.reflectAck}>Your reflection&apos;s saved — it shapes tomorrow&apos;s article.</Text> : null}
-              <Text style={styles.movingOn}>Moving on…</Text>
-            </View>
+                {levelUp ? (
+                  <Text style={styles.levelUp}>
+                    {levelUp.kind === 'language'
+                      ? `Language level ${levelUp.from} → ${levelUp.to} 🎉`
+                      : `Field level ${levelUp.from} → ${levelUp.to} 🎉`}
+                  </Text>
+                ) : null}
+                {reflected ? <Text style={styles.reflectAck}>Your reflection&apos;s saved.</Text> : null}
+              </View>
+              <View style={styles.footer}>
+                <Button label="Continue" onPress={onFinish}>
+                  <ArrowRight />
+                </Button>
+              </View>
+            </>
           ) : (
             <View style={styles.footer}>
               <Button label="See what's next" onPress={submit} disabled={!answered}>
@@ -145,7 +147,6 @@ const styles = StyleSheet.create({
   result: { textAlign: 'center', color: colors.accent, fontSize: 15, fontFamily: fonts.medium },
   levelUp: { textAlign: 'center', color: colors.accent, fontSize: 16, fontFamily: fonts.semibold },
   reflectAck: { textAlign: 'center', color: colors.textSec, fontSize: 13, fontFamily: fonts.regular },
-  movingOn: { textAlign: 'center', color: colors.textTer, fontSize: 13, fontFamily: fonts.regular, marginTop: 2 },
   explain: { marginTop: 10, color: colors.textSec, fontSize: 13, fontFamily: fonts.regular, lineHeight: 19 },
   footer: { marginTop: 28, flexDirection: 'row', justifyContent: 'flex-end' },
 });

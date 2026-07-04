@@ -10,18 +10,24 @@ import { getAiConfig, setAiConfig, clearAiConfig } from '@/ai/keyStore';
 import { testProviderKey } from '@/ai/llm';
 import { PROVIDERS, providerInfo, type ProviderId, type AiConfig } from '@/ai/catalog';
 import { signOut } from '@/data/auth';
-import { isSupabaseConfigured } from '@/data/supabase';
+import { isSupabaseConfigured, supabase } from '@/data/supabase';
 import { getLadders } from '@/data/ladder';
 import { getRetention } from '@/data/profile';
+import { getTrailStats, type TrailStats } from '@/data/trail';
+import { listHighlightsRemote } from '@/data/highlights';
 import { saveSettings } from '@/data/settings';
 import { useAppStore } from '@/store/useAppStore';
 
-const STATS = [
-  { label: 'Total articles', value: '12' },
-  { label: 'Longest streak', value: '12 days' },
-  { label: 'Topics explored', value: '3' },
-  { label: 'Highlights saved', value: '4' },
-];
+// Test-key failures arrive as raw provider errors ("Anthropic API 401") — translate
+// the common statuses into a next step the user can actually take.
+function friendlyKeyError(raw: string): string {
+  const status = raw.match(/\b(401|403|429|5\d\d)\b/)?.[1];
+  if (status === '401') return 'Key not accepted (401). Check it was copied fully, then try again.';
+  if (status === '403') return 'Key lacks access (403) — often no billing or credit on the provider account.';
+  if (status === '429') return 'Rate limited (429). Wait a minute and try again.';
+  if (status) return `Provider error (${status}) — the service may be down. Try again shortly.`;
+  return raw || 'Key check failed.';
+}
 
 export function Profile() {
   const fontSize = useAppStore((s) => s.fontSize);
@@ -36,6 +42,10 @@ export function Profile() {
   const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
   const [ladders, setLadders] = useState<{ cefr: string; fields: { label: string; level: number }[] } | null>(null);
   const [retention, setRetention] = useState(0);
+  const [stats, setStats] = useState<TrailStats>({ articlesRead: 0, dayStreak: 0, topicsExplored: 0 });
+  const [remoteQuotes, setRemoteQuotes] = useState<string[]>([]);
+  const [identity, setIdentity] = useState<{ name: string; since: string | null }>({ name: 'You', since: null });
+  const highlights = useAppStore((s) => s.highlights);
   useEffect(() => {
     getAiConfig().then((c) => {
       setSavedConfig(c);
@@ -43,7 +53,29 @@ export function Profile() {
     });
     getLadders().then(setLadders);
     getRetention().then(setRetention);
+    getTrailStats().then(setStats).catch(() => {});
+    listHighlightsRemote()
+      .then((l) => setRemoteQuotes(l.map((h) => h.quote)))
+      .catch(() => {});
+    if (supabase) {
+      supabase.auth.getUser().then(({ data }) => {
+        const u = data.user;
+        if (!u) return;
+        const name = (u.user_metadata?.display_name as string | undefined) ?? u.email ?? 'You';
+        const since = u.created_at
+          ? new Date(u.created_at).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
+          : null;
+        setIdentity({ name, since });
+      });
+    }
   }, []);
+  const highlightCount = new Set([...highlights.map((h) => h.quote), ...remoteQuotes]).size;
+  const statCards = [
+    { label: 'Articles read', value: String(stats.articlesRead) },
+    { label: 'Day streak', value: stats.dayStreak === 1 ? '1 day' : `${stats.dayStreak} days` },
+    { label: 'Topics explored', value: String(stats.topicsExplored) },
+    { label: 'Highlights saved', value: String(highlightCount) },
+  ];
   const draftConfig = (): AiConfig => ({ provider, key: keyInput.trim(), ...(modelInput.trim() ? { model: modelInput.trim() } : {}) });
 
   const testKey = async () => {
@@ -55,7 +87,7 @@ export function Profile() {
       await testProviderKey(draftConfig());
       setTestResult({ ok: true, msg: '✓ Key works — you can save it.' });
     } catch (e) {
-      setTestResult({ ok: false, msg: `✗ ${e instanceof Error ? e.message : 'Key check failed.'}` });
+      setTestResult({ ok: false, msg: `✗ ${friendlyKeyError(e instanceof Error ? e.message : '')}` });
     } finally {
       setTesting(false);
     }
@@ -87,11 +119,11 @@ export function Profile() {
         <View style={styles.wrap}>
           <View style={styles.idRow}>
             <View style={styles.bigAvatar}>
-              <Text style={styles.bigAvatarText}>J</Text>
+              <Text style={styles.bigAvatarText}>{identity.name.charAt(0).toUpperCase()}</Text>
             </View>
             <View>
-              <Text style={styles.name}>Jordan Lee</Text>
-              <Text style={styles.member}>Member since April 2026</Text>
+              <Text style={styles.name}>{identity.name}</Text>
+              {identity.since ? <Text style={styles.member}>Member since {identity.since}</Text> : null}
             </View>
           </View>
 
@@ -115,12 +147,15 @@ export function Profile() {
             </Svg>
             <View style={{ flex: 1 }}>
               <Text style={styles.ringTitle}>Retention Score</Text>
-              <Text style={styles.ringDesc}>Based on quiz performance and spaced repetition recall over the last 30 days.</Text>
+              <Text style={styles.ringDesc}>
+                Your Memory Check average, 0–100 — how well you remember past articles when they resurface. 50+ is solid; 70+ is
+                excellent. Passing Memory Checks raises it.
+              </Text>
             </View>
           </View>
 
           <View style={styles.stats}>
-            {STATS.map((s) => (
+            {statCards.map((s) => (
               <View key={s.label} style={styles.stat}>
                 <Text style={styles.statValue}>{s.value}</Text>
                 <Text style={styles.statLabel}>{s.label}</Text>

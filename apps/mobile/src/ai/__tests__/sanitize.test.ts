@@ -14,6 +14,18 @@ describe('sanitize', () => {
     expect(q?.[1]).toMatchObject({ type: 'open', q: 'y', placeholder: 'Type your thoughts…' });
   });
 
+  it('drops mc questions with an invalid correct index instead of defaulting to 0', () => {
+    expect(sanitizeQuiz([{ type: 'mc', q: 'x', opts: ['a', 'b'], correct: 'first' }])).toBeUndefined();
+    expect(sanitizeQuiz([{ type: 'mc', q: 'x', opts: ['a', 'b'], correct: 5 }])).toBeUndefined();
+    expect(sanitizeQuiz([{ type: 'mc', q: 'x', opts: ['a', 'b'], correct: -1 }])).toBeUndefined();
+    const q = sanitizeQuiz([
+      { type: 'mc', q: 'bad', opts: ['a', 'b'], correct: 9 },
+      { type: 'mc', q: 'good', opts: ['a', 'b'], correct: 0 },
+    ]);
+    expect(q).toHaveLength(1);
+    expect(q?.[0]).toMatchObject({ q: 'good', correct: 0 });
+  });
+
   it('returns undefined for non-arrays and empty results', () => {
     expect(sanitizeQuiz('nope')).toBeUndefined();
     expect(sanitizeVocab([])).toBeUndefined();
