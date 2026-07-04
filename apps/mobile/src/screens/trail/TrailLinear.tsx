@@ -1,29 +1,40 @@
 import { useEffect, useState } from 'react';
-import { ScrollView, View, Text, StyleSheet } from 'react-native';
+import { ScrollView, View, Text, ActivityIndicator, Pressable, StyleSheet } from 'react-native';
 import { colors, radius } from '@/design/tokens';
 import { fonts } from '@/design/typography';
 import { useAppStore } from '@/store/useAppStore';
 import { getTrail, getTrailStats, type TrailItem, type TrailStats } from '@/data/trail';
+import { Button } from '@/components/Button';
 
 export function TrailLinear() {
   const nextTopic = useAppStore((s) => s.nextTopic);
   const [trail, setTrail] = useState<TrailItem[]>([]);
   const [stats, setStats] = useState<TrailStats>({ articlesRead: 0, dayStreak: 0, topicsExplored: 0 });
-  const [loaded, setLoaded] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const [t, s] = await Promise.all([getTrail(nextTopic), getTrailStats()]);
-      if (cancelled) return;
-      setTrail(t);
-      setStats(s);
-      setLoaded(true);
+      setLoading(true);
+      setError(false);
+      try {
+        const [t, s] = await Promise.all([getTrail(nextTopic), getTrailStats()]);
+        if (cancelled) return;
+        setTrail(t);
+        setStats(s);
+      } catch {
+        if (cancelled) return;
+        setError(true);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     })();
     return () => {
       cancelled = true;
     };
-  }, [nextTopic]);
+  }, [nextTopic, attempt]);
 
   const statCards = [
     { label: 'Articles read', value: String(stats.articlesRead) },
@@ -37,7 +48,16 @@ export function TrailLinear() {
         <Text style={styles.title}>Knowledge Trail</Text>
         <Text style={styles.sub}>Every article you&apos;ve read, in order. Each choice shapes the next.</Text>
 
-        {loaded && trail.length === 0 ? (
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={colors.accent} />
+          </View>
+        ) : error ? (
+          <View style={styles.errorCard}>
+            <Text style={styles.errorText}>Couldn&apos;t load your trail.</Text>
+            <Button variant="ghost" size="sm" label="Retry" onPress={() => setAttempt((a) => a + 1)} style={{ marginTop: 12, alignSelf: 'flex-start' }} />
+          </View>
+        ) : trail.length === 0 ? (
           <View style={styles.empty}>
             <Text style={styles.emptyText}>Your trail starts with your first article. Finish today&apos;s read to add the first node.</Text>
           </View>
@@ -45,7 +65,7 @@ export function TrailLinear() {
           <View style={styles.timeline}>
             <View style={styles.spine} />
             {trail.map((node, i) => (
-              <View key={node.id} style={{ position: 'relative', marginBottom: i < trail.length - 1 ? 28 : 0 }}>
+              <View key={node.id} accessible accessibilityLabel={`${node.label}, day ${node.day}${node.isCurrent ? ', current' : ''}${node.isNext ? ', tomorrow' : ''}`} style={{ position: 'relative', marginBottom: i < trail.length - 1 ? 28 : 0 }}>
                 <View
                   style={[
                     styles.dot,
@@ -77,7 +97,7 @@ export function TrailLinear() {
 
         <View style={styles.stats}>
           {statCards.map((s) => (
-            <View key={s.label} style={styles.stat}>
+            <View key={s.label} style={styles.stat} accessible accessibilityLabel={`${s.label}: ${s.value}`}>
               <Text style={styles.statValue}>{s.value}</Text>
               <Text style={styles.statLabel}>{s.label}</Text>
             </View>
@@ -93,6 +113,9 @@ const styles = StyleSheet.create({
   wrap: { width: '100%', maxWidth: 560, alignSelf: 'center' },
   title: { fontSize: 26, fontFamily: fonts.semibold, letterSpacing: -0.8, marginBottom: 6, color: colors.text },
   sub: { color: colors.textSec, fontSize: 15, lineHeight: 24, fontFamily: fonts.regular, marginBottom: 40 },
+  loadingContainer: { paddingVertical: 48, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center' },
+  errorCard: { paddingVertical: 18, paddingHorizontal: 16, borderRadius: radius.card, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card },
+  errorText: { color: colors.textSec, fontSize: 14, fontFamily: fonts.regular },
   empty: { paddingVertical: 32, paddingHorizontal: 20, borderRadius: radius.card, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card },
   emptyText: { color: colors.textSec, fontSize: 14, lineHeight: 22, fontFamily: fonts.regular, textAlign: 'center' },
   timeline: { position: 'relative', paddingLeft: 32 },

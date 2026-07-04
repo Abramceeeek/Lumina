@@ -3,6 +3,7 @@ import { ScrollView, View, Text, TextInput, Pressable, StyleSheet } from 'react-
 import { colors, radius } from '@/design/tokens';
 import { fonts } from '@/design/typography';
 import { Header } from '@/components/Header';
+import { Button } from '@/components/Button';
 import { Pill } from '@/components/Pill';
 import { HIGHLIGHTS } from '@/data/sample';
 import { useAppStore } from '@/store/useAppStore';
@@ -15,9 +16,23 @@ export function Notes() {
   const [filter, setFilter] = useState('All');
   const userHls = useAppStore((s) => s.highlights);
   const [remote, setRemote] = useState<SavedHighlight[]>([]);
+  const [loading, setLoading] = useState(isSupabaseConfigured);
+  const [error, setError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
-    if (isSupabaseConfigured) listHighlightsRemote().then(setRemote).catch(() => {});
-  }, []);
+    if (isSupabaseConfigured) {
+      setLoading(true);
+      setError(false);
+      listHighlightsRemote()
+        .then(setRemote)
+        .catch(() => {
+          setError(true);
+        })
+        .finally(() => {
+          setLoading(false);
+        });
+    }
+  }, [attempt]);
   const seen = new Set<string>();
   // Sample highlights are demo-only: never mix them into a cloud-backed user's real list.
   const all = [...userHls, ...remote, ...(isSupabaseConfigured ? [] : HIGHLIGHTS)].filter((h) => {
@@ -60,17 +75,25 @@ export function Notes() {
           </View>
 
           <View style={{ gap: 12 }}>
-            {filtered.map((h) => (
-              <View key={h.id} style={styles.card}>
-                <Text style={styles.quote}>&ldquo;{h.quote}&rdquo;</Text>
-                <View style={styles.metaRow}>
-                  <Pill label={h.topic} />
-                  <Text style={styles.article}>{h.article}</Text>
-                  <Text style={styles.date}>{h.date}</Text>
-                </View>
+            {error && isSupabaseConfigured ? (
+              <View style={styles.errorCard}>
+                <Text style={styles.errorText}>Couldn&apos;t load your highlights.</Text>
+                <Button variant="ghost" size="sm" label="Retry" onPress={() => setAttempt((a) => a + 1)} style={{ marginTop: 12, alignSelf: 'flex-start' }} />
               </View>
-            ))}
-            {filtered.length === 0 && <Text style={styles.empty}>No highlights match your search.</Text>}
+            ) : filtered.length === 0 ? (
+              <Text style={styles.empty}>No highlights match your search.</Text>
+            ) : (
+              filtered.map((h) => (
+                <View key={h.id} style={styles.card}>
+                  <Text style={styles.quote}>&ldquo;{h.quote}&rdquo;</Text>
+                  <View style={styles.metaRow}>
+                    <Pill label={h.topic} />
+                    <Text style={styles.article}>{h.article}</Text>
+                    <Text style={styles.date}>{h.date}</Text>
+                  </View>
+                </View>
+              ))
+            )}
           </View>
         </View>
       </ScrollView>
@@ -85,6 +108,8 @@ const styles = StyleSheet.create({
   search: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, paddingVertical: 10, paddingHorizontal: 14, fontSize: 14, fontFamily: fonts.regular, color: colors.text, backgroundColor: colors.card, marginBottom: 12 },
   filters: { flexDirection: 'row', gap: 6, marginBottom: 24 },
   filter: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: radius.pill, borderWidth: 1, minHeight: 44, justifyContent: 'center', alignItems: 'center' },
+  errorCard: { paddingVertical: 18, paddingHorizontal: 16, borderRadius: radius.card, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card },
+  errorText: { color: colors.textSec, fontSize: 14, fontFamily: fonts.regular },
   card: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: radius.card, paddingVertical: 18, paddingHorizontal: 20 },
   quote: { borderLeftWidth: 3, borderLeftColor: colors.accent, paddingLeft: 14, fontSize: 16, lineHeight: 27, color: colors.text, fontStyle: 'italic', fontFamily: fonts.regular, marginBottom: 12 },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },

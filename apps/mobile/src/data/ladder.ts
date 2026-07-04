@@ -46,10 +46,18 @@ export async function nextFocus(): Promise<Focus> {
 export type LadderUp =
   | { kind: 'language'; from: Cefr; to: Cefr }
   | { kind: 'field'; from: FieldLevel; to: FieldLevel };
+// A pass that counted toward the next rung but didn't promote yet.
+export type LadderProgress = { kind: 'progress'; passes: number; needed: number; next: string };
+export type LadderResult = LadderUp | LadderProgress;
 
-// On a passing quiz, advance the ladder the article targeted. Returns the change
-// so the UI can show a level-up (or null when it no-ops / is already at the top).
-export async function advanceLadder(opts: { focus: Focus; fieldId?: string | null; passed: boolean }): Promise<LadderUp | null> {
+// One perfect 2-question quiz is too noisy to jump a whole rung (~25% by guessing);
+// each promotion takes this many passing quizzes (migration 0009 stores the count).
+const PASSES_PER_RUNG = 3;
+
+// On a passing quiz, count a pass toward the targeted ladder; promote when enough
+// passes accumulate. Returns what happened so the UI can show progress or a
+// level-up (null when it no-ops / is already at the top).
+export async function advanceLadder(opts: { focus: Focus; fieldId?: string | null; passed: boolean }): Promise<LadderResult | null> {
   if (!supabase || !opts.passed) return null;
   const { data: u } = await supabase.auth.getUser();
   if (!u.user) return null;
@@ -58,27 +66,37 @@ export async function advanceLadder(opts: { focus: Focus; fieldId?: string | nul
   if (opts.focus === 'language') {
     const { data } = await supabase
       .from('user_language_levels')
-      .select('cefr')
+      .select('cefr, passes')
       .eq('user_id', uid)
       .eq('language', LANG)
       .maybeSingle();
     const from = (data?.cefr as Cefr) ?? 'A1';
     const to = nextCefr(from);
     if (to === from) return null; // already at C2
-    await supabase.from('user_language_levels').upsert({ user_id: uid, language: LANG, cefr: to }, { onConflict: 'user_id,language' });
-    return { kind: 'language', from, to };
+    const passes = (Number(data?.passes) || 0) + 1;
+    if (passes >= PASSES_PER_RUNG) {
+      await supabase.from('user_language_levels').upsert({ user_id: uid, language: LANG, cefr: to, passes: 0 }, { onConflict: 'user_id,language' });
+      return { kind: 'language', from, to };
+    }
+    await supabase.from('user_language_levels').upsert({ user_id: uid, language: LANG, cefr: from, passes }, { onConflict: 'user_id,language' });
+    return { kind: 'progress', passes, needed: PASSES_PER_RUNG, next: to };
   } else if (opts.fieldId) {
     const { data } = await supabase
       .from('user_field_levels')
-      .select('level')
+      .select('level, passes')
       .eq('user_id', uid)
       .eq('field_id', opts.fieldId)
       .maybeSingle();
     const from = (data?.level as FieldLevel) ?? 1;
     const to = nextFieldLevel(from);
     if (to === from) return null; // already at Professional
-    await supabase.from('user_field_levels').upsert({ user_id: uid, field_id: opts.fieldId, level: to }, { onConflict: 'user_id,field_id' });
-    return { kind: 'field', from, to };
+    const passes = (Number(data?.passes) || 0) + 1;
+    if (passes >= PASSES_PER_RUNG) {
+      await supabase.from('user_field_levels').upsert({ user_id: uid, field_id: opts.fieldId, level: to, passes: 0 }, { onConflict: 'user_id,field_id' });
+      return { kind: 'field', from, to };
+    }
+    await supabase.from('user_field_levels').upsert({ user_id: uid, field_id: opts.fieldId, level: from, passes }, { onConflict: 'user_id,field_id' });
+    return { kind: 'progress', passes, needed: PASSES_PER_RUNG, next: `field level ${to}` };
   }
   return null;
 }

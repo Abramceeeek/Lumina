@@ -10,7 +10,7 @@ import { SAMPLE_QUIZ } from '@/data/sample';
 import { mcCount, mcScore, allMcAnswered } from '@/lib/quiz';
 import { useAppStore } from '@/store/useAppStore';
 import { saveQuizResponse } from '@/data/quizResponses';
-import { advanceLadder, type LadderUp } from '@/data/ladder';
+import { advanceLadder, type LadderResult } from '@/data/ladder';
 import { scheduleRecall } from '@/data/spacedrep';
 
 export function Quiz({ onFinish }: { onFinish: () => void }) {
@@ -22,7 +22,7 @@ export function Quiz({ onFinish }: { onFinish: () => void }) {
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [openText, setOpenText] = useState('');
   const [submitted, setSubmitted] = useState(false);
-  const [levelUp, setLevelUp] = useState<LadderUp | null>(null);
+  const [levelUp, setLevelUp] = useState<LadderResult | null>(null);
   const [reflected, setReflected] = useState(false);
 
   const total = mcCount(quiz);
@@ -101,16 +101,22 @@ export function Quiz({ onFinish }: { onFinish: () => void }) {
 
           {submitted ? (
             <>
-              <View style={styles.resultBox}>
+              <View style={styles.resultBox} accessibilityLiveRegion="polite">
                 <Text style={styles.result}>
                   ✓ {correct === total ? 'Perfect score!' : correct === 1 ? 'Good effort!' : 'Keep reading!'}
                 </Text>
                 {levelUp ? (
-                  <Text style={styles.levelUp}>
-                    {levelUp.kind === 'language'
-                      ? `Language level ${levelUp.from} → ${levelUp.to} 🎉`
-                      : `Field level ${levelUp.from} → ${levelUp.to} 🎉`}
-                  </Text>
+                  levelUp.kind === 'progress' ? (
+                    <Text style={styles.levelUp}>
+                      Pass {levelUp.passes} of {levelUp.needed} toward {levelUp.next} ✓
+                    </Text>
+                  ) : (
+                    <Text style={styles.levelUp}>
+                      {levelUp.kind === 'language'
+                        ? `Language level ${levelUp.from} → ${levelUp.to} 🎉`
+                        : `Field level ${levelUp.from} → ${levelUp.to} 🎉`}
+                    </Text>
+                  )
                 ) : null}
                 {reflected ? <Text style={styles.reflectAck}>Your reflection&apos;s saved — tomorrow&apos;s article can build on it.</Text> : null}
               </View>

@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, StyleSheet, PanResponder } from 'react-native';
+import { View, Text, ActivityIndicator, StyleSheet, PanResponder } from 'react-native';
 import Svg, { Circle, Line, Rect, G, Text as SvgText } from 'react-native-svg';
 import { colors, radius } from '@/design/tokens';
 import { fonts } from '@/design/typography';
 import { useAppStore } from '@/store/useAppStore';
 import { getGraph, type GraphNode } from '@/data/trail';
+import { Button } from '@/components/Button';
 
 const W = 600;
 const H = 520;
@@ -13,7 +14,9 @@ export function TrailGraph() {
   const nextTopic = useAppStore((s) => s.nextTopic);
   const [nodes, setNodes] = useState<GraphNode[]>([]);
   const [edges, setEdges] = useState<[string, string][]>([]);
-  const [loaded, setLoaded] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   const offset = useRef({ x: -40, y: -40 });
   const [pos, setPos] = useState({ x: -40, y: -40 });
@@ -22,16 +25,24 @@ export function TrailGraph() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const g = await getGraph(nextTopic);
-      if (cancelled) return;
-      setNodes(g.nodes);
-      setEdges(g.edges);
-      setLoaded(true);
+      setLoading(true);
+      setError(false);
+      try {
+        const g = await getGraph(nextTopic);
+        if (cancelled) return;
+        setNodes(g.nodes);
+        setEdges(g.edges);
+      } catch {
+        if (cancelled) return;
+        setError(true);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     })();
     return () => {
       cancelled = true;
     };
-  }, [nextTopic]);
+  }, [nextTopic, attempt]);
 
   // Core RN pan (no reanimated): only captures after real movement, so taps
   // still reach node onPress.
@@ -76,7 +87,18 @@ export function TrailGraph() {
       </View>
 
       <View style={styles.canvas} {...responder.panHandlers}>
-        {loaded && nodes.length === 0 ? (
+        {loading ? (
+          <View style={styles.centerContent}>
+            <ActivityIndicator size="large" color={colors.accent} />
+          </View>
+        ) : error ? (
+          <View style={styles.centerContent}>
+            <View style={styles.errorCard}>
+              <Text style={styles.errorText}>Couldn&apos;t load your graph.</Text>
+              <Button variant="ghost" size="sm" label="Retry" onPress={() => setAttempt((a) => a + 1)} style={{ marginTop: 12, alignSelf: 'flex-start' }} />
+            </View>
+          </View>
+        ) : nodes.length === 0 ? (
           <View style={styles.empty}>
             <Text style={styles.emptyText}>Read your first article to grow your knowledge graph.</Text>
           </View>
@@ -106,7 +128,7 @@ export function TrailGraph() {
                 const r = node.current ? 20 : node.next ? 14 : 16;
                 const labelText = node.label.length > 18 ? node.label.slice(0, 17) + '…' : node.label;
                 return (
-                  <G key={node.id} onPress={() => setSelected(node.id)}>
+                  <G key={node.id} onPress={() => setSelected(node.id)} accessible accessibilityRole="button" accessibilityLabel={`${node.label}${node.current ? ', current article' : node.next ? ', tomorrow' : `, ${node.topic}`}`}>
                     {node.current && <Circle cx={node.x} cy={node.y} r={r + 8} fill={color} opacity={0.12} />}
                     <Circle
                       cx={node.x}
@@ -156,6 +178,9 @@ const styles = StyleSheet.create({
   legendDot: { width: 8, height: 8, borderRadius: 4 },
   legendText: { fontSize: 12, color: colors.textSec, fontFamily: fonts.regular },
   canvas: { flex: 1, overflow: 'hidden', marginHorizontal: 20, marginBottom: 20, borderRadius: radius.card, borderWidth: 1, borderColor: colors.border, backgroundColor: '#FDFDFC' },
+  centerContent: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
+  errorCard: { paddingVertical: 18, paddingHorizontal: 16, borderRadius: radius.card, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, maxWidth: 300 },
+  errorText: { color: colors.textSec, fontSize: 14, fontFamily: fonts.regular },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
   emptyText: { color: colors.textSec, fontSize: 14, lineHeight: 22, fontFamily: fonts.regular, textAlign: 'center' },
   tooltip: { position: 'absolute', bottom: 16, alignSelf: 'center', flexDirection: 'row', backgroundColor: colors.text, paddingVertical: 8, paddingHorizontal: 14, borderRadius: radius.sm },
