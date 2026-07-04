@@ -79,6 +79,24 @@ export async function getTodaysBaseline(fieldId: string | null | undefined): Pro
   };
 }
 
+export type ReviewArticle = { title: string; topic: string; body: string[]; vocabulary?: VocabItem[] };
+
+// A past article for read-only review from the trail. RLS: articles are readable
+// by any authenticated user, so any trail node resolves.
+export async function getArticleForReview(articleId: string): Promise<ReviewArticle | null> {
+  if (!supabase) return null;
+  const { data } = await supabase.from('articles').select('title, body, vocabulary, fields(label)').eq('id', articleId).maybeSingle();
+  if (!data) return null;
+  const fld = data.fields as { label?: string } | { label?: string }[] | null;
+  const label = Array.isArray(fld) ? fld[0]?.label : fld?.label;
+  return {
+    title: String(data.title),
+    topic: label ?? '',
+    body: Array.isArray(data.body) ? (data.body as unknown[]).map(String) : [],
+    vocabulary: sanitizeVocab(data.vocabulary),
+  };
+}
+
 // Record that the user read an article (one row per read).
 export async function recordRead(articleId: string | null | undefined, opts?: { focus?: Focus }): Promise<void> {
   if (!supabase || !articleId) return;

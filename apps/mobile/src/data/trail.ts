@@ -38,6 +38,7 @@ export async function appendTrailNode(articleId: string | null | undefined): Pro
 type RawNode = {
   id: string;
   parent_id: string | null;
+  article_id: string | null;
   day: number;
   is_current: boolean;
   created_at: string;
@@ -57,7 +58,7 @@ async function fetchNodes(): Promise<RawNode[]> {
   if (!u.user) return [];
   const { data } = await supabase
     .from('trail_nodes')
-    .select('id, parent_id, day, is_current, created_at, articles(title, fields(label, color))')
+    .select('id, parent_id, article_id, day, is_current, created_at, articles(title, fields(label, color))')
     .eq('user_id', u.user.id)
     .order('day', { ascending: true });
   return (data ?? []).map((r: Record<string, unknown>) => {
@@ -66,6 +67,7 @@ async function fetchNodes(): Promise<RawNode[]> {
     return {
       id: String(r.id),
       parent_id: r.parent_id ? String(r.parent_id) : null,
+      article_id: r.article_id ? String(r.article_id) : null,
       day: Number(r.day ?? 0),
       is_current: !!r.is_current,
       created_at: String(r.created_at ?? ''),
@@ -76,13 +78,13 @@ async function fetchNodes(): Promise<RawNode[]> {
   });
 }
 
-export type TrailItem = { id: string; label: string; topic: string; color: string; day: number; isCurrent?: boolean; isNext?: boolean };
+export type TrailItem = { id: string; label: string; topic: string; color: string; day: number; articleId?: string; isCurrent?: boolean; isNext?: boolean };
 
 // Linear timeline: chronological nodes + a synthetic "tomorrow" node from the
 // pending next topic.
 export async function getTrail(nextTopic?: string | null): Promise<TrailItem[]> {
   const nodes = await fetchNodes();
-  const items: TrailItem[] = nodes.map((n) => ({ id: n.id, label: n.title, topic: n.topic, color: n.color, day: n.day, isCurrent: n.is_current }));
+  const items: TrailItem[] = nodes.map((n) => ({ id: n.id, label: n.title, topic: n.topic, color: n.color, day: n.day, articleId: n.article_id ?? undefined, isCurrent: n.is_current }));
   if (nextTopic && items.length) {
     const last = items[items.length - 1];
     items.push({ id: 'next', label: nextTopic, topic: last.topic, color: last.color, day: 0, isNext: true });

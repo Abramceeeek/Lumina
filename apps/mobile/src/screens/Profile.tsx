@@ -9,7 +9,7 @@ import { Input } from '@/components/Input';
 import { getAiConfig, setAiConfig, clearAiConfig } from '@/ai/keyStore';
 import { testProviderKey } from '@/ai/llm';
 import { PROVIDERS, providerInfo, type ProviderId, type AiConfig } from '@/ai/catalog';
-import { signOut } from '@/data/auth';
+import { signOut, deleteAccount } from '@/data/auth';
 import { isSupabaseConfigured, supabase } from '@/data/supabase';
 import { getLadders } from '@/data/ladder';
 import { getRetention } from '@/data/profile';
@@ -38,6 +38,20 @@ export function Profile() {
   const [provider, setProvider] = useState<ProviderId>('anthropic');
   const [keyInput, setKeyInput] = useState('');
   const [modelInput, setModelInput] = useState('');
+  const [deleteArm, setDeleteArm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteErr, setDeleteErr] = useState('');
+
+  const doDeleteAccount = async () => {
+    setDeleting(true);
+    setDeleteErr('');
+    try {
+      await deleteAccount(); // the auth listener returns the app to the Auth screen
+    } catch {
+      setDeleteErr("Couldn't delete the account — check your connection and try again.");
+      setDeleting(false);
+    }
+  };
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
   const [ladders, setLadders] = useState<{ cefr: string; fields: { label: string; level: number }[] } | null>(null);
@@ -269,7 +283,32 @@ export function Profile() {
           </View>
 
           {isSupabaseConfigured ? (
-            <Button variant="ghost" size="sm" label="Sign out" onPress={signOut} style={{ marginTop: 24, alignSelf: 'flex-start' }} />
+            <>
+              <Button variant="ghost" size="sm" label="Sign out" onPress={signOut} style={{ marginTop: 24, alignSelf: 'flex-start' }} />
+              <View style={styles.dangerZone}>
+                {deleteArm ? (
+                  <>
+                    <Text style={styles.dangerText}>
+                      This permanently deletes your account and everything in it — articles, highlights, trail, levels and settings.
+                      It cannot be undone.
+                    </Text>
+                    <View style={styles.dangerActions}>
+                      <Button
+                        variant="danger"
+                        size="sm"
+                        label={deleting ? 'Deleting…' : 'Delete permanently'}
+                        onPress={doDeleteAccount}
+                        disabled={deleting}
+                      />
+                      <Button variant="ghost" size="sm" label="Cancel" onPress={() => setDeleteArm(false)} disabled={deleting} />
+                    </View>
+                    {deleteErr ? <Text style={styles.deleteErr}>{deleteErr}</Text> : null}
+                  </>
+                ) : (
+                  <Button variant="ghost" size="sm" label="Delete account" onPress={() => setDeleteArm(true)} style={{ alignSelf: 'flex-start' }} />
+                )}
+              </View>
+            </>
           ) : null}
         </View>
       </ScrollView>
@@ -345,4 +384,8 @@ const styles = StyleSheet.create({
   segItemActive: { backgroundColor: colors.accent },
   segText: { fontSize: 13, color: colors.textSec, fontFamily: fonts.medium },
   segTextActive: { color: '#fff' },
+  dangerZone: { marginTop: 20, paddingTop: 16, borderTopWidth: 1, borderTopColor: colors.border, gap: 10 },
+  dangerText: { fontSize: 13, color: colors.textSec, lineHeight: 19, fontFamily: fonts.regular },
+  dangerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  deleteErr: { fontSize: 13, color: semantic.danger, fontFamily: fonts.regular },
 });

@@ -68,6 +68,7 @@ server/               Track B news-agent (Node/TS, run via tsx)
 supabase/
   migrations/         0001_init … 0008_leaderboard (schema + RLS + functions)
   functions/personalize/  Deno Edge Function (hosted AI fallback)
+  functions/delete-account/  Deno Edge Function (self-service account deletion)
   seed.sql            taxonomy: 12 fields + finance sub-fields
 packages/shared/      @lumina/shared — TS types + constants shared by app + server
   src/                types/{learning,quiz,content,ai}, constants/fields, index

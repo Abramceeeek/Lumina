@@ -82,8 +82,8 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
-      - name: Typecheck Supabase Edge Function (Deno)
-        run: deno check supabase/functions/personalize/index.ts
+      - name: Typecheck Supabase Edge Functions (Deno)
+        run: deno check supabase/functions/personalize/index.ts supabase/functions/delete-account/index.ts
 
   audit:
     name: Deps · audit (advisory)

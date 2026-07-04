@@ -46,3 +46,15 @@ export async function resetPassword(email: string) {
   const { error } = await supabase.auth.resetPasswordForEmail(email);
   if (error) throw error;
 }
+
+// Permanently delete the account and all data (App Store 5.1.1(v)). The edge
+// function deletes the auth user with the service role; FK cascades wipe every
+// user table. Signs out afterwards so the auth listener returns to the Auth screen.
+export async function deleteAccount() {
+  if (!supabase) throw new Error('Supabase not configured');
+  const { data, error } = await supabase.functions.invoke('delete-account');
+  if (error) throw error;
+  const payload = data as { ok?: boolean; error?: string } | null;
+  if (!payload?.ok) throw new Error(payload?.error ?? 'Deletion failed');
+  await supabase.auth.signOut();
+}
