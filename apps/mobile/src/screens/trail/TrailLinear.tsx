@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
-import { ScrollView, View, Text, ActivityIndicator, Pressable, StyleSheet } from 'react-native';
+import { Modal, ScrollView, View, Text, ActivityIndicator, Pressable, StyleSheet } from 'react-native';
 import { colors, radius } from '@/design/tokens';
 import { fonts } from '@/design/typography';
 import { useAppStore } from '@/store/useAppStore';
 import { getTrail, getTrailStats, type TrailItem, type TrailStats } from '@/data/trail';
+import { getArticleForReview, type ReviewArticle } from '@/data/articles';
 import { Button } from '@/components/Button';
+import { Pill } from '@/components/Pill';
 
 export function TrailLinear() {
   const nextTopic = useAppStore((s) => s.nextTopic);
@@ -13,6 +15,7 @@ export function TrailLinear() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [attempt, setAttempt] = useState(0);
+  const [review, setReview] = useState<{ articleId: string; title: string } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -65,7 +68,15 @@ export function TrailLinear() {
           <View style={styles.timeline}>
             <View style={styles.spine} />
             {trail.map((node, i) => (
-              <View key={node.id} accessible accessibilityLabel={`${node.label}, day ${node.day}${node.isCurrent ? ', current' : ''}${node.isNext ? ', tomorrow' : ''}`} style={{ position: 'relative', marginBottom: i < trail.length - 1 ? 28 : 0 }}>
+              <Pressable
+                key={node.id}
+                accessible
+                accessibilityRole={node.articleId && !node.isNext ? 'button' : undefined}
+                accessibilityLabel={`${node.label}, day ${node.day}${node.isCurrent ? ', current' : ''}${node.isNext ? ', tomorrow' : ''}`}
+                accessibilityHint={node.articleId && !node.isNext ? 'Opens the article to re-read' : undefined}
+                onPress={node.articleId && !node.isNext ? () => setReview({ articleId: node.articleId as string, title: node.label }) : undefined}
+                style={{ position: 'relative', marginBottom: i < trail.length - 1 ? 28 : 0 }}
+              >
                 <View
                   style={[
                     styles.dot,
@@ -90,10 +101,12 @@ export function TrailLinear() {
                     )}
                   </View>
                 </View>
-              </View>
+              </Pressable>
             ))}
           </View>
         )}
+
+        {review ? <ReviewModal articleId={review.articleId} fallbackTitle={review.title} onClose={() => setReview(null)} /> : null}
 
         <View style={styles.stats}>
           {statCards.map((s) => (
@@ -105,6 +118,70 @@ export function TrailLinear() {
         </View>
       </View>
     </ScrollView>
+  );
+}
+
+// Read-only revisit of a past article from its trail node — no timer, no quiz,
+// no effect on streak or ladder.
+function ReviewModal({ articleId, fallbackTitle, onClose }: { articleId: string; fallbackTitle: string; onClose: () => void }) {
+  const [article, setArticle] = useState<ReviewArticle | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    getArticleForReview(articleId)
+      .then((a) => {
+        if (cancelled) return;
+        if (a) setArticle(a);
+        else setFailed(true);
+      })
+      .catch(() => {
+        if (!cancelled) setFailed(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [articleId]);
+  return (
+    <Modal transparent animationType="fade" visible onRequestClose={onClose}>
+      <View style={styles.reviewBackdrop}>
+        <View style={styles.reviewCard}>
+          <View style={styles.reviewHead}>
+            <View style={{ flex: 1, gap: 6 }}>
+              {article?.topic ? <Pill label={article.topic} /> : null}
+              <Text style={styles.reviewTitle}>{article?.title ?? fallbackTitle}</Text>
+            </View>
+            <Pressable onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" hitSlop={8}>
+              <Text style={styles.reviewClose}>×</Text>
+            </Pressable>
+          </View>
+          {failed ? (
+            <Text style={styles.reviewText}>Couldn&apos;t load this article. Check your connection and try again.</Text>
+          ) : !article ? (
+            <View style={{ paddingVertical: 32, alignItems: 'center' }}>
+              <ActivityIndicator color={colors.accent} />
+            </View>
+          ) : (
+            <ScrollView style={{ maxHeight: 420 }} contentContainerStyle={{ gap: 16, paddingBottom: 8 }}>
+              {article.body.map((p, i) => (
+                <Text key={i} style={styles.reviewText}>
+                  {p}
+                </Text>
+              ))}
+              {article.vocabulary?.length ? (
+                <View style={styles.reviewVocab}>
+                  {article.vocabulary.map((v) => (
+                    <Text key={v.word} style={styles.reviewText}>
+                      <Text style={{ fontFamily: fonts.semibold, color: colors.accent }}>{v.word}</Text> — {v.definition}
+                    </Text>
+                  ))}
+                </View>
+              ) : null}
+            </ScrollView>
+          )}
+          <Text style={styles.reviewNote}>Re-reading — doesn&apos;t affect your streak or levels.</Text>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -133,4 +210,12 @@ const styles = StyleSheet.create({
   stat: { flex: 1, paddingVertical: 16, paddingHorizontal: 8, borderRadius: radius.card, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, alignItems: 'center' },
   statValue: { fontSize: 24, fontFamily: fonts.semibold, letterSpacing: -0.6, marginBottom: 4, color: colors.text },
   statLabel: { fontSize: 12, color: colors.textTer, fontFamily: fonts.regular, textAlign: 'center' },
+  reviewBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center', padding: 20 },
+  reviewCard: { width: '100%', maxWidth: 560, backgroundColor: colors.card, borderRadius: radius.card, borderWidth: 1, borderColor: colors.border, padding: 20 },
+  reviewHead: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingBottom: 14, marginBottom: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
+  reviewTitle: { fontSize: 18, fontFamily: fonts.semibold, letterSpacing: -0.4, color: colors.text, lineHeight: 24 },
+  reviewClose: { fontSize: 24, color: colors.textTer, paddingHorizontal: 4 },
+  reviewText: { fontSize: 15, lineHeight: 24, color: colors.textSec, fontFamily: fonts.regular },
+  reviewVocab: { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 14, gap: 8 },
+  reviewNote: { fontSize: 12, color: colors.textTer, fontFamily: fonts.regular, fontStyle: 'italic', marginTop: 14 },
 });
