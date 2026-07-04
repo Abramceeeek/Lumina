@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { ScrollView, View, Text, TextInput, StyleSheet } from 'react-native';
 import { colors, radius } from '@/design/tokens';
 import { fonts } from '@/design/typography';
@@ -27,16 +27,19 @@ export function Branch({ onDone }: { onDone: () => void }) {
     ? articleBranches.map((b, i) => ({ id: `g${i}`, title: b.title, desc: b.description }))
     : SAMPLE_BRANCHES;
 
-  const doneTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => { if (doneTimer.current) clearTimeout(doneTimer.current); }, []);
+  // The trail node is appended once per session; re-confirming after "Change
+  // choice" only overwrites the topic, it doesn't duplicate the node.
+  const appended = useRef(false);
 
   const confirm = () => {
     const chosen = branches.find((b) => b.id === selected);
     setNextTopic(customText.trim() || chosen?.title || 'your next topic');
     setCompletedDate(new Date().toISOString().slice(0, 10));
-    void appendTrailNode(articleId);
+    if (!appended.current) {
+      appended.current = true;
+      void appendTrailNode(articleId);
+    }
     setConfirmed(true);
-    doneTimer.current = setTimeout(onDone, 900);
   };
 
   return (
@@ -96,7 +99,11 @@ export function Branch({ onDone }: { onDone: () => void }) {
           <View style={styles.footer}>
             {!canConfirm && <Text style={styles.hint}>Select a topic to continue</Text>}
             {confirmed ? (
-              <Text style={styles.saved}>✓ Saved! See you tomorrow.</Text>
+              <>
+                <Text style={styles.saved}>✓ Saved! See you tomorrow.</Text>
+                <Button variant="ghost" size="sm" label="Change choice" onPress={() => setConfirmed(false)} />
+                <Button label="Done" onPress={onDone} />
+              </>
             ) : (
               <Button label="Choose & come back tomorrow" onPress={confirm} disabled={!canConfirm} />
             )}

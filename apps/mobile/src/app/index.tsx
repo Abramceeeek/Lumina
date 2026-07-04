@@ -86,11 +86,13 @@ function LocalRoot() {
   const onboarded = useAppStore((s) => s.onboarded);
   const setOnboarded = useAppStore((s) => s.setOnboarded);
   const setDifficulty = useAppStore((s) => s.setDifficulty);
+  const setInterests = useAppStore((s) => s.setInterests);
   if (!onboarded) {
     return (
       <Onboarding
-        onDone={({ difficulty }) => {
+        onDone={({ fields, difficulty }) => {
           setDifficulty(difficulty);
+          setInterests(fields);
           setOnboarded(true);
         }}
       />

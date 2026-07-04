@@ -13,6 +13,7 @@ export type DailyArticle = {
   body: string[];
   articleId?: string;
   note?: string; // provider note ("Personalized by Claude…") — the AI-content disclosure
+  readSecs?: number; // seconds read so far, so an interruption doesn't reset the gate
   focus?: Focus;
   fieldId?: string;
   quiz?: QuizQuestion[];
@@ -31,6 +32,9 @@ type AppState = {
   setReadWidth: (n: number) => void;
   dailyArticle: DailyArticle | null;
   setDailyArticle: (a: DailyArticle) => void;
+  setReadSecs: (n: number) => void;
+  interests: string[];
+  setInterests: (ids: string[]) => void;
   nextTopic: string | null;
   setNextTopic: (t: string) => void;
   completedDate: string | null;
@@ -55,6 +59,9 @@ export const useAppStore = create<AppState>()(
       setReadWidth: (n) => set({ readWidth: n }),
       dailyArticle: null,
       setDailyArticle: (a) => set({ dailyArticle: a }),
+      setReadSecs: (n) => set((s) => (s.dailyArticle ? { dailyArticle: { ...s.dailyArticle, readSecs: n } } : {})),
+      interests: [],
+      setInterests: (ids) => set({ interests: ids }),
       nextTopic: null,
       setNextTopic: (t) => set({ nextTopic: t }),
       completedDate: null,
