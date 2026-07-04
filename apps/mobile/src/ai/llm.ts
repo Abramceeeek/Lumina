@@ -7,13 +7,29 @@ import type { GenerateInput, Generated, PersonalizeInput, Personalized, Personal
 
 // ── prompts + parsing ───────────────────────────────────────────────────────
 
+// Concrete calibration anchors per CEFR level — description-only level targets
+// ("toward A2") drift badly; anchors pin sentence length and vocabulary band.
+const CEFR_ANCHORS: Record<string, string> = {
+  A1: 'very short sentences (under 8 words), present tense, only the ~500 most common words',
+  A2: 'short sentences (under 12 words), simple present and past, the ~1000 most common words',
+  B1: 'everyday vocabulary plus common abstract words, occasional subordinate clauses',
+  B2: 'varied sentence structure, common idioms, vocabulary roughly within the Oxford 3000',
+  C1: 'complex sentences, nuanced vocabulary, natural idiomatic phrasing',
+  C2: 'full native range: sophisticated vocabulary and layered argument structure',
+};
+
+function cefrAnchor(level?: string): string {
+  const l = level ?? 'A2';
+  return `CEFR ${l} (${CEFR_ANCHORS[l] ?? CEFR_ANCHORS.A2})`;
+}
+
 // Alternating-focus instruction (CLAUDE.md §7): one ladder is pushed, the other held.
 function focusLine(focus?: string, languageLevel?: string, fieldLevel?: number): string {
   if (focus === 'language') {
-    return `Focus on LANGUAGE: keep the subject approachable, but deliberately stretch vocabulary and sentence structure toward CEFR ${languageLevel ?? 'A2'}.`;
+    return `Focus on LANGUAGE: keep the subject approachable, but deliberately stretch vocabulary and sentence structure toward ${cefrAnchor(languageLevel)}.`;
   }
   if (focus === 'field') {
-    return `Focus on FIELD: keep the language simple and familiar, but go deeper into the subject — introduce and explain more specialized concepts (depth ${fieldLevel ?? 2} of 5).`;
+    return `Focus on FIELD: hold the language at ${cefrAnchor(languageLevel)}, but go deeper into the subject — introduce and explain more specialized concepts (depth ${fieldLevel ?? 2} of 5, where 1 explains everything from scratch and 5 assumes professional familiarity).`;
   }
   return '';
 }
@@ -50,13 +66,16 @@ ${i.body.join('\n\n')}`;
 
 function buildGeneratePrompt(i: GenerateInput): string {
   const words = i.targetMinutes >= 15 ? 900 : 500;
+  const reflection = i.priorReflection?.trim()
+    ? `The reader wrote this reflection after their last article: "${i.priorReflection.trim().slice(0, 300)}" — acknowledge or build on it where it fits naturally.\n`
+    : '';
   return `Write an engaging, factual ~${words}-word article for a ${i.difficulty}-level ${i.language} learner about: ${i.topic}.
 ${focusLine(i.focus, i.languageLevel, i.fieldLevel)}
-Adjust vocabulary and sentence complexity appropriately. Make it genuinely interesting and self-contained.
+${reflection}Adjust vocabulary and sentence complexity appropriately. Make it genuinely interesting and self-contained.
 Then add learning scaffolding drawn from THIS article.
 Respond with ONLY a JSON object (no markdown fences, no preamble):
 {"title": string, "body": string[], "vocabulary": [{"word": string, "definition": string}], "quiz": [{"type":"mc","q":string,"opts":[string,string,string,string],"correct":number,"explanation":string},{"type":"mc","q":string,"opts":[string,string,string,string],"correct":number,"explanation":string},{"type":"open","q":string,"placeholder":string}], "branches": [{"title":string,"description":string}]}
-"vocabulary": 4-6 key terms from the article. "quiz": exactly two multiple-choice then one open reflection; "correct" is the 0-based index of the right option; "explanation" is one short sentence saying why the correct option is right (so the reader learns from it). "branches": 4-5 related next topics to explore.`;
+"vocabulary": 4-6 useful terms from the article for a ${i.languageLevel ?? 'A2'} learner — high-frequency words slightly above their level; no proper nouns. "quiz": exactly two multiple-choice then one open reflection; option wording must stay at the article's language level; "correct" is the 0-based index of the right option; "explanation" is one short sentence saying why the correct option is right (so the reader learns from it). "branches": 4-5 related next topics to explore.`;
 }
 
 function parseGenerated(text: string, topic: string): Generated {
@@ -157,7 +176,10 @@ export function createProvider(cfg: AiConfig): { personalizer: Personalizer; gen
       id: cfg.provider,
       async generate(input) {
         const text = await call(buildGeneratePrompt(input), 2800);
-        return parseGenerated(text, input.topic);
+        return {
+          ...parseGenerated(text, input.topic),
+          note: `Written by ${info.label} for your level · ${input.language} · ${input.difficulty}${input.focus ? ` · ${input.focus}` : ''}`,
+        };
       },
     },
   };

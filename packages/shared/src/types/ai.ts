@@ -32,6 +32,7 @@ export type GenerateInput = {
   difficulty: Difficulty;
   language: string;
   targetMinutes: number;
+  priorReflection?: string; // the reader's last open-quiz reflection, so the next article can build on it
 } & LadderContext;
 export type Generated = {
   title: string;
