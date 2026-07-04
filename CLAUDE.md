@@ -66,7 +66,7 @@ apps/mobile/          Expo (React Native) client — the phone app
 server/               Track B news-agent (Node/TS, run via tsx)
   src/                db, anthropic, ingest, synthesize, baseline, run-* CLIs, util (+ __tests__)
 supabase/
-  migrations/         0001_init … 0008_leaderboard (schema + RLS + functions)
+  migrations/         0001_init … 0009_ladder_passes (schema + RLS + functions)
   functions/personalize/  Deno Edge Function (hosted AI fallback)
   functions/delete-account/  Deno Edge Function (self-service account deletion)
   seed.sql            taxonomy: 12 fields + finance sub-fields
@@ -170,7 +170,7 @@ when configured and **degrades gracefully** otherwise. RLS scopes every user row
 
 ## 6. Data model (Supabase)
 
-8 migrations (`supabase/migrations/0001_init.sql` … `0008_leaderboard.sql`), 19 tables.
+9 migrations (`supabase/migrations/0001_init.sql` … `0009_ladder_passes.sql`), 19 tables.
 `pgcrypto` + `vector` (pgvector) extensions enabled in `0001`.
 
 **Taxonomy (shared, read-only to clients):** `fields`, `subfields`.
@@ -203,7 +203,7 @@ and enrichment columns `quiz_questions`/`vocabulary`/`branches_text`), `branches
 **Migration map:** `0001` schema+trigger · `0002` RLS · `0003` client-authored
 articles (`author_id`) · `0004` `profiles.last_focus` · `0005` article enrichment
 columns · `0006` spaced-rep `stage` · `0007` Track B tables + `articles.story_id`
-· `0008` `get_leaderboard()`.
+· `0008` `get_leaderboard()` · `0009` ladder `passes` (promotion counters).
 
 ---
 
@@ -295,8 +295,12 @@ pulls a *real* baseline and personalizes end-to-end) 🟡 · **S3** (on-device o
   - `focus: 'field'` → hold language level; **introduce deeper field concepts**.
 - The onboarding comfort choice seeds both ladders (`difficultyToLevels`:
   Simple→A1/1, Medium→B1/2, Hard→C1/3).
-- **Promotion:** quiz + spaced-recall performance advances the targeted ladder.
-  `user_articles` stores `language_cefr_at_read` / `field_level_at_read` for analytics.
+- **Promotion:** a passing quiz (all MC correct) or passing recall counts one
+  *pass* toward the targeted ladder; **3 passes promote one rung** (`passes`
+  counters from migration `0009`, logic in `data/ladder.ts`; the quiz shows
+  "Pass N of 3 toward X"). Lapsed recalls step the spaced-rep stage back one
+  (not a reset). `user_articles` stores `language_cefr_at_read` /
+  `field_level_at_read` for analytics.
 - Personalization (§7b) threads both levels + focus into every rewrite; the
   `focusLine()` helper (mirrored in `llm.ts` and the edge function) encodes the
   "push one ladder, hold the other" instruction.
