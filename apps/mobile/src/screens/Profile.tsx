@@ -45,18 +45,29 @@ export function Profile() {
   const [stats, setStats] = useState<TrailStats>({ articlesRead: 0, dayStreak: 0, topicsExplored: 0 });
   const [remoteQuotes, setRemoteQuotes] = useState<string[]>([]);
   const [identity, setIdentity] = useState<{ name: string; since: string | null }>({ name: 'You', since: null });
+  const [laddersError, setLaddersError] = useState(false);
+  const [retentionError, setRetentionError] = useState(false);
+  const [statsError, setStatsError] = useState(false);
+  const [highlightsError, setHighlightsError] = useState(false);
+  const [identityError, setIdentityError] = useState(false);
   const highlights = useAppStore((s) => s.highlights);
   useEffect(() => {
     getAiConfig().then((c) => {
       setSavedConfig(c);
       if (c) setProvider(c.provider);
     });
-    getLadders().then(setLadders);
-    getRetention().then(setRetention);
-    getTrailStats().then(setStats).catch(() => {});
+    getLadders()
+      .then(setLadders)
+      .catch(() => setLaddersError(true));
+    getRetention()
+      .then(setRetention)
+      .catch(() => setRetentionError(true));
+    getTrailStats()
+      .then(setStats)
+      .catch(() => setStatsError(true));
     listHighlightsRemote()
       .then((l) => setRemoteQuotes(l.map((h) => h.quote)))
-      .catch(() => {});
+      .catch(() => setHighlightsError(true));
     if (supabase) {
       supabase.auth.getUser().then(({ data }) => {
         const u = data.user;
@@ -66,7 +77,7 @@ export function Profile() {
           ? new Date(u.created_at).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
           : null;
         setIdentity({ name, since });
-      });
+      }).catch(() => setIdentityError(true));
     }
   }, []);
   const highlightCount = new Set([...highlights.map((h) => h.quote), ...remoteQuotes]).size;
@@ -128,7 +139,7 @@ export function Profile() {
           </View>
 
           <View style={styles.ringCard}>
-            <Svg width={size} height={size} accessible accessibilityLabel={`Retention score: ${retention} out of 100`}>
+            <Svg width={size} height={size} accessible accessibilityLabel={`Retention score: ${retention.toString()} out of 100`}>
               <Circle cx={r + 10} cy={r + 10} r={r} fill="none" stroke={colors.border} strokeWidth={8} />
               <Circle
                 cx={r + 10}
@@ -156,7 +167,7 @@ export function Profile() {
 
           <View style={styles.stats}>
             {statCards.map((s) => (
-              <View key={s.label} style={styles.stat}>
+              <View key={s.label} accessible accessibilityLabel={`${s.label}: ${s.value}`} style={styles.stat}>
                 <Text style={styles.statValue}>{s.value}</Text>
                 <Text style={styles.statLabel}>{s.label}</Text>
               </View>

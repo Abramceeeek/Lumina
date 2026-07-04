@@ -11,7 +11,6 @@ import { Social } from '@/screens/Social';
 import { Profile } from '@/screens/Profile';
 import { Onboarding } from '@/screens/onboarding/Onboarding';
 import { Auth } from '@/screens/auth/Auth';
-import { MemoryCheck } from '@/components/MemoryCheckModal';
 import { AppBanner } from '@/components/AppBanner';
 import { useAppStore } from '@/store/useAppStore';
 import { isSupabaseConfigured } from '@/data/supabase';
@@ -47,7 +46,6 @@ function MainApp() {
         {tab === 'profile' && <Profile />}
       </View>
       <BottomNav active={tab} onChange={setTab} />
-      <MemoryCheck />
       <AppBanner />
     </SafeAreaView>
   );

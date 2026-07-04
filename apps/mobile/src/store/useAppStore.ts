@@ -41,6 +41,8 @@ type AppState = {
   setCompletedDate: (d: string) => void;
   highlights: SavedHighlight[];
   addHighlight: (h: Omit<SavedHighlight, 'id' | 'date'>) => void;
+  memoryIntroSeen: boolean;
+  setMemoryIntroSeen: (v: boolean) => void;
 };
 
 let seq = 0;
@@ -66,6 +68,8 @@ export const useAppStore = create<AppState>()(
       setNextTopic: (t) => set({ nextTopic: t }),
       completedDate: null,
       setCompletedDate: (d) => set({ completedDate: d }),
+      memoryIntroSeen: false,
+      setMemoryIntroSeen: (v) => set({ memoryIntroSeen: v }),
       highlights: [],
       addHighlight: (h) =>
         set((s) => ({

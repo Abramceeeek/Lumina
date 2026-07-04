@@ -6,12 +6,56 @@ import { Button } from '@/components/Button';
 import { mcCount, mcScore, allMcAnswered } from '@/lib/quiz';
 import { recordRecall, type DueRecall } from '@/data/spacedrep';
 import { useMemoryCheck } from '@/hooks/useMemoryCheck';
+import { useAppStore } from '@/store/useAppStore';
 
-// Mount once at the app root: shows a recall quiz when something is due.
+// Mounted in the Today tab: when a recall is due, invite with a dismissible card
+// (the modal used to ambush at app open, before the user saw anything else).
 export function MemoryCheck() {
   const { due, dismiss } = useMemoryCheck();
+  const [open, setOpen] = useState(false);
+  const introSeen = useAppStore((s) => s.memoryIntroSeen);
+  const setMemoryIntroSeen = useAppStore((s) => s.setMemoryIntroSeen);
   if (!due) return null;
-  return <MemoryCheckModal recall={due} onClose={dismiss} />;
+  if (!open) {
+    return (
+      <View style={styles.invite}>
+        <View style={styles.inviteHead}>
+          <View style={styles.clock}>
+            <Text style={{ fontSize: 16 }}>⏱️</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.title}>Memory Check ready</Text>
+            <Text style={styles.subtitle} numberOfLines={1}>
+              You read “{due.title}” a while ago
+            </Text>
+          </View>
+        </View>
+        {!introSeen ? (
+          <Text style={styles.intro}>We resurface past articles after a few days — recalling them is what makes reading stick.</Text>
+        ) : null}
+        <View style={styles.inviteActions}>
+          <Button
+            size="sm"
+            label="Start"
+            onPress={() => {
+              setOpen(true);
+              setMemoryIntroSeen(true);
+            }}
+          />
+          <Button variant="ghost" size="sm" label="Later" onPress={dismiss} />
+        </View>
+      </View>
+    );
+  }
+  return (
+    <MemoryCheckModal
+      recall={due}
+      onClose={() => {
+        setOpen(false);
+        dismiss();
+      }}
+    />
+  );
 }
 
 function MemoryCheckModal({ recall, onClose }: { recall: DueRecall; onClose: () => void }) {
@@ -96,6 +140,10 @@ function MemoryCheckModal({ recall, onClose }: { recall: DueRecall; onClose: () 
 }
 
 const styles = StyleSheet.create({
+  invite: { marginHorizontal: 20, marginTop: 10, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: radius.card, padding: 14, gap: 10 },
+  inviteHead: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  intro: { fontSize: 13, color: colors.textSec, fontFamily: fonts.regular, lineHeight: 18 },
+  inviteActions: { flexDirection: 'row', alignItems: 'center', gap: 8, justifyContent: 'flex-end' },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center', padding: 20 },
   card: { width: '100%', maxWidth: 480, backgroundColor: colors.card, borderRadius: radius.card, borderWidth: 1, borderColor: colors.border, padding: 20 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingBottom: 16, marginBottom: 16, borderBottomWidth: 1, borderBottomColor: colors.border },

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ScrollView, View, Text, ActivityIndicator, StyleSheet } from 'react-native';
+import { ScrollView, View, Text, ActivityIndicator, Pressable, StyleSheet } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { colors, radius, semantic, TOPICS } from '@/design/tokens';
 import { fonts } from '@/design/typography';
@@ -65,6 +65,29 @@ function describeGenError(e: unknown): string {
   return 'Something went wrong while writing the article. Try again, or read a sample.';
 }
 
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+type GlossSeg = { t: string; v?: VocabItem };
+
+// Split a paragraph around vocab words so they can be tinted + tappable in place
+// (the end-of-article vocab card alone leaves the words unanchored in the text).
+function glossSegments(p: string, vocab?: VocabItem[]): GlossSeg[] {
+  if (!vocab?.length) return [{ t: p }];
+  const re = new RegExp(`\\b(${vocab.map((v) => escapeRegExp(v.word)).join('|')})\\b`, 'gi');
+  const out: GlossSeg[] = [];
+  let last = 0;
+  for (const m of p.matchAll(re)) {
+    const idx = m.index ?? 0;
+    if (idx > last) out.push({ t: p.slice(last, idx) });
+    out.push({ t: m[0], v: vocab.find((v) => v.word.toLowerCase() === m[0].toLowerCase()) });
+    last = idx + m[0].length;
+  }
+  if (last < p.length) out.push({ t: p.slice(last) });
+  return out.length ? out : [{ t: p }];
+}
+
 // A2 + generation: the daily article is generated for the user's topic at their
 // level (cached per day + difficulty), then read with a finish-timer gate and
 // long-press highlights.
@@ -103,6 +126,7 @@ export function Article({ onFinish }: { onFinish: () => void }) {
   const [loadSecs, setLoadSecs] = useState(0);
   const [genErrorMsg, setGenErrorMsg] = useState('');
   const [toast, setToast] = useState(false);
+  const [activeGloss, setActiveGloss] = useState<VocabItem | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Generate today's article (re-runnable via `attempt`). On failure/timeout we
@@ -381,7 +405,11 @@ export function Article({ onFinish }: { onFinish: () => void }) {
             <Text style={styles.timerCaption}>Take your time — the next step unlocks when you&apos;re done reading.</Text>
           ) : null}
 
-          <Text style={styles.hint}>Long-press a paragraph to save a highlight.</Text>
+          <Text style={styles.hint}>
+            {vocab?.length
+              ? 'Tap a tinted word for its meaning · long-press a paragraph to save a highlight.'
+              : 'Long-press a paragraph to save a highlight.'}
+          </Text>
 
           <View style={{ gap: 22 }}>
             {content.body.map((p, i) => (
@@ -392,7 +420,22 @@ export function Article({ onFinish }: { onFinish: () => void }) {
                 accessibilityHint="Long-press to save this paragraph as a highlight"
                 style={[styles.para, { fontSize, lineHeight: Math.round(fontSize * 1.78) }, i === 0 ? styles.paraLead : null]}
               >
-                {p}
+                {glossSegments(p, vocab).map((seg, si) =>
+                  seg.v ? (
+                    <Text
+                      key={si}
+                      style={styles.gloss}
+                      suppressHighlighting
+                      onPress={() => setActiveGloss(seg.v ?? null)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${seg.v.word}, show definition`}
+                    >
+                      {seg.t}
+                    </Text>
+                  ) : (
+                    seg.t
+                  ),
+                )}
               </Text>
             ))}
           </View>
@@ -429,6 +472,18 @@ export function Article({ onFinish }: { onFinish: () => void }) {
           </View>
         </View>
       </ScrollView>
+
+      {activeGloss ? (
+        <Pressable
+          style={styles.glossCard}
+          onPress={() => setActiveGloss(null)}
+          accessibilityRole="button"
+          accessibilityLabel={`${activeGloss.word}: ${activeGloss.definition}. Tap to dismiss`}
+        >
+          <Text style={styles.glossWord}>{activeGloss.word}</Text>
+          <Text style={styles.glossDef}>{activeGloss.definition}</Text>
+        </Pressable>
+      ) : null}
 
       {toast ? (
         <View style={styles.toast}>
@@ -473,4 +528,8 @@ const styles = StyleSheet.create({
   greatText: { color: colors.textSec, fontSize: 15, fontFamily: fonts.regular, marginBottom: 16 },
   toast: { position: 'absolute', bottom: 24, alignSelf: 'center', backgroundColor: colors.text, paddingVertical: 10, paddingHorizontal: 18, borderRadius: radius.pill },
   toastText: { color: '#fff', fontSize: 13, fontFamily: fonts.medium },
+  gloss: { backgroundColor: colors.accentLight, color: colors.accent, borderRadius: 3 },
+  glossCard: { position: 'absolute', bottom: 64, left: 20, right: 20, maxWidth: 520, alignSelf: 'center', backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: radius.card, padding: 14 },
+  glossWord: { fontSize: 15, fontFamily: fonts.semibold, color: colors.accent, marginBottom: 2 },
+  glossDef: { fontSize: 14, fontFamily: fonts.regular, color: colors.textSec, lineHeight: 20 },
 });

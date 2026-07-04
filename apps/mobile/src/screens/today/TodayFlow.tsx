@@ -4,6 +4,7 @@ import { colors } from '@/design/tokens';
 import { fonts } from '@/design/typography';
 import { Header } from '@/components/Header';
 import { Button } from '@/components/Button';
+import { MemoryCheck } from '@/components/MemoryCheckModal';
 import { useAppStore } from '@/store/useAppStore';
 import { Article } from './Article';
 import { Quiz } from './Quiz';
@@ -30,6 +31,7 @@ export function TodayFlow() {
     return (
       <View style={{ flex: 1 }}>
         <Header />
+        <MemoryCheck />
         <View style={styles.done}>
           <Text style={styles.doneEmoji}>🎉</Text>
           <Text style={styles.doneTitle}>You&apos;ve read today&apos;s article</Text>
@@ -42,6 +44,7 @@ export function TodayFlow() {
 
   return (
     <View style={{ flex: 1 }}>
+      <MemoryCheck />
       <View style={styles.bar}>
         {STEPS.map((s, i) => {
           const done = i < cur;
