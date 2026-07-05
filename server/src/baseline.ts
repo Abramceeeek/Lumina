@@ -84,7 +84,9 @@ export async function buildBaselines(): Promise<{ created: number; skipped: numb
       continue;
     }
     const attribution = await sourceAttribution(s.id);
+    // Schema enforces the product's two read lengths: est_read_minutes in (5, 15).
     const words = s.synthesis.split(/\s+/).filter(Boolean).length;
+    const estReadMinutes = words >= 1400 ? 15 : 5;
 
     const { error } = await db.from('articles').insert({
       author_id: null, // shared/server baseline
@@ -95,7 +97,7 @@ export async function buildBaselines(): Promise<{ created: number; skipped: numb
       body: paragraphs(s.synthesis),
       base_difficulty: 3,
       focus: 'field',
-      est_read_minutes: Math.max(2, Math.min(15, Math.round(words / 200) || 2)),
+      est_read_minutes: estReadMinutes,
       lang: 'en',
       is_seed: false,
       quiz_questions: quiz,
