@@ -19,16 +19,24 @@ async function ensureSource(): Promise<string> {
 
 async function fetchGdelt(query: string): Promise<GdeltArticle[]> {
   const u = new URL(GDELT);
-  u.searchParams.set('query', `${query} sourcelang:english`);
+  // Quote multi-word labels ("Art & Design") so GDELT treats them as a phrase.
+  const q = /\s/.test(query) ? `"${query}"` : query;
+  u.searchParams.set('query', `${q} sourcelang:english`);
   u.searchParams.set('mode', 'ArtList');
   u.searchParams.set('format', 'json');
   u.searchParams.set('maxrecords', '25');
   u.searchParams.set('timespan', '1d');
   u.searchParams.set('sort', 'HybridRel');
-  const res = await fetch(u, { headers: { 'user-agent': 'Lumina/0.1 (news synthesis)' } });
-  if (!res.ok) return [];
-  const data = (await res.json().catch(() => null)) as { articles?: GdeltArticle[] } | null;
-  return data?.articles ?? [];
+  try {
+    const res = await fetch(u, { headers: { 'user-agent': 'Lumina/0.1 (news synthesis)' } });
+    if (!res.ok) return [];
+    const data = (await res.json().catch(() => null)) as { articles?: GdeltArticle[] } | null;
+    return data?.articles ?? [];
+  } catch (e) {
+    // One field's network failure shouldn't kill the whole ingest run.
+    console.error(`ingest fetch failed for "${query}": ${(e as Error).message}`);
+    return [];
+  }
 }
 
 export async function ingest(): Promise<{ fetched: number; inserted: number }> {
@@ -40,8 +48,14 @@ export async function ingest(): Promise<{ fetched: number; inserted: number }> {
   const seen = new Set<string>();
   const rows: Record<string, unknown>[] = [];
 
+  let first = true;
   for (const q of queries) {
+    // GDELT throttles rapid-fire requests (empty responses after ~3 quick calls);
+    // its guidance is roughly one request per 5 seconds.
+    if (!first) await new Promise((r) => setTimeout(r, 6000));
+    first = false;
     const arts = await fetchGdelt(q);
+    console.log(`ingest: ${q} -> ${arts.length} headlines`);
     fetched += arts.length;
     for (const a of arts) {
       if (!a.url || !a.title || seen.has(a.url)) continue;

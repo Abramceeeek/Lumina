@@ -1,5 +1,5 @@
 import { db } from './db.js';
-import { callClaude, extractJson } from './anthropic.js';
+import { callModel, extractJson } from './llm.js';
 import { clamp01 } from './util.js';
 
 // Research/synthesis agent. For each field, gather today's ingested headlines and
@@ -29,7 +29,7 @@ Respond with ONLY JSON (no markdown fences): {"title": string, "summary": string
 
   let text: string;
   try {
-    text = await callClaude(prompt, 1800);
+    text = await callModel(prompt, 1800);
   } catch (e) {
     console.error(`synthesis call failed for ${field}:`, (e as Error).message);
     return null;

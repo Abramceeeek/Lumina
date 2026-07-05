@@ -170,7 +170,17 @@ export function Article({ onFinish }: { onFinish: () => void }) {
               c = { title: baseline.title, topic: field.label, body: p.body.length ? p.body : baseline.body };
               id = baseline.id; // a real article row already exists; read against it
               usedFocus = baseline.focus ?? focus;
-              providerNote = p.note;
+              // Real-news provenance leads the disclosure — synthesized-from-real
+              // beats "AI-written" for trust, and for baselines it's true.
+              providerNote =
+                [
+                  baseline.sourceCount
+                    ? `Synthesized from ${baseline.sourceCount} real news source${baseline.sourceCount === 1 ? '' : 's'}`
+                    : null,
+                  p.note ?? null,
+                ]
+                  .filter(Boolean)
+                  .join(' · ') || undefined;
             } else {
               const topic = nextTopic ?? field?.label ?? TOPICS.find((t) => t.id === interests[0])?.label ?? SAMPLE_ARTICLE.topic;
               const priorReflection = (await getLatestReflection()) ?? undefined;

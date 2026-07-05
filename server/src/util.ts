@@ -14,3 +14,16 @@ export function parseSeendate(s?: string): string | null {
 export function clamp01(n: number): number {
   return Number.isNaN(n) ? 0.5 : Math.max(0, Math.min(1, n));
 }
+
+// Publisher domain for attribution: prefer the explicit domain (GDELT metadata),
+// else the URL hostname; strips a leading "www.". Null when neither parses.
+export function domainOf(url?: string | null, fallbackDomain?: string | null): string | null {
+  const clean = (d: string) => d.replace(/^www\./, '').toLowerCase();
+  if (fallbackDomain && typeof fallbackDomain === 'string') return clean(fallbackDomain);
+  if (!url) return null;
+  try {
+    return clean(new URL(url).hostname);
+  } catch {
+    return null;
+  }
+}

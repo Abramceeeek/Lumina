@@ -1,6 +1,19 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseSeendate, clamp01 } from '../util.js';
+import { parseSeendate, clamp01, domainOf } from '../util.js';
+
+test('domainOf prefers the explicit domain, stripping www.', () => {
+  assert.equal(domainOf('https://example.com/a', 'www.Reuters.com'), 'reuters.com');
+});
+
+test('domainOf falls back to the URL hostname', () => {
+  assert.equal(domainOf('https://www.bbc.co.uk/news/x', null), 'bbc.co.uk');
+});
+
+test('domainOf returns null when nothing parses', () => {
+  assert.equal(domainOf(undefined, null), null);
+  assert.equal(domainOf('not a url', null), null);
+});
 
 test('parseSeendate parses a valid GDELT timestamp to ISO', () => {
   assert.equal(parseSeendate('20260615T091500Z'), '2026-06-15T09:15:00.000Z');
