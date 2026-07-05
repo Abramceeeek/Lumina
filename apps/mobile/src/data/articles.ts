@@ -52,18 +52,23 @@ export type Baseline = {
   vocabulary?: VocabItem[];
   branches?: BranchOption[];
   focus?: Focus;
+  sourceCount?: number;
+  sourceDomains?: string[];
 };
 
-// The latest server-synthesized baseline article for a field (author_id null),
-// for the client to personalize (sync point S2). Null if the server hasn't served
-// one yet — caller falls back to on-device generation.
+// The freshest server-synthesized baseline article for a field (author_id null),
+// for the client to personalize (sync point S2). Only baselines from the last 48h
+// count — the pipeline runs daily, and stale "news" is worse than generating fresh.
+// Null when none exists — caller falls back to on-device generation.
 export async function getTodaysBaseline(fieldId: string | null | undefined): Promise<Baseline | null> {
   if (!supabase || !fieldId) return null;
+  const freshSince = new Date(Date.now() - 48 * 3600 * 1000).toISOString();
   const { data } = await supabase
     .from('articles')
-    .select('id, title, body, quiz_questions, vocabulary, branches_text, focus')
+    .select('id, title, body, quiz_questions, vocabulary, branches_text, focus, source_count, source_domains')
     .is('author_id', null)
     .eq('field_id', fieldId)
+    .gte('created_at', freshSince)
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -76,6 +81,8 @@ export async function getTodaysBaseline(fieldId: string | null | undefined): Pro
     vocabulary: sanitizeVocab(data.vocabulary),
     branches: sanitizeBranches(data.branches_text),
     focus: (data.focus as Focus) ?? undefined,
+    sourceCount: typeof data.source_count === 'number' ? data.source_count : undefined,
+    sourceDomains: Array.isArray(data.source_domains) ? (data.source_domains as unknown[]).map(String) : undefined,
   };
 }
 

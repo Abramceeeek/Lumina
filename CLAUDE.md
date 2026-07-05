@@ -123,11 +123,12 @@ quiz, spaced repetition) → advance the ladders → branch into sub-fields → 
 **Why the split:** synthesize a story *once* (amortized across all users); personalize
 it *per person*, cheaply and privately, ideally on-device.
 
-**Where the split is today (🟡):** the server pipeline writes baseline `articles`,
-and the client *can* personalize any baseline. But there is **no HTTP serving/ranking
-API yet**, so in the running app the client mostly **generates** its daily article
-(hosted/BYOK/mock) rather than pulling a server baseline. Wiring that pull is
-sync-point **S2** (§8, ROADMAP).
+**Where the split is today (S2 code-complete):** the pipeline writes ranked,
+quality-gated baseline `articles` with source attribution, and the client pulls the
+freshest ≤48h baseline for the user's field, personalizes it, and shows "Synthesized
+from N real news sources". Branched explorations and days without a fresh baseline
+still fall back to on-device generation, labeled as AI-written. First green pipeline
+run needs the `SUPABASE_SERVICE_ROLE_KEY` + `GROQ_API_KEY` repo secrets (§8).
 
 ---
 
@@ -203,7 +204,8 @@ and enrichment columns `quiz_questions`/`vocabulary`/`branches_text`), `branches
 **Migration map:** `0001` schema+trigger · `0002` RLS · `0003` client-authored
 articles (`author_id`) · `0004` `profiles.last_focus` · `0005` article enrichment
 columns · `0006` spaced-rep `stage` · `0007` Track B tables + `articles.story_id`
-· `0008` `get_leaderboard()` · `0009` ladder `passes` (promotion counters).
+· `0008` `get_leaderboard()` · `0009` ladder `passes` (promotion counters)
+· `0010` `articles.source_count/source_domains` (baseline attribution for S2).
 
 ---
 
@@ -212,8 +214,8 @@ columns · `0006` spaced-rep `stage` · `0007` Track B tables + `articles.story_
 Two distinct uses of AI. Keep them separate. **On-device providers are not built yet.**
 
 ### 7a. Server AI — discovery & synthesis (cloud, your key)
-Runs in `server/`, calls **Claude** (`server/src/anthropic.ts`; default model
-`claude-haiku-4-5-20251001`). `synthesize.ts` writes an ORIGINAL neutral brief per
+Runs in `server/`, calls an LLM via `server/src/llm.ts` — **Claude** (`claude-haiku-4-5-20251001`)
+when `ANTHROPIC_API_KEY` is set, else **Groq** (`llama-3.3-70b-versatile`, free tier). `synthesize.ts` writes an ORIGINAL neutral brief per
 field + concepts + target vocab; `baseline.ts` turns a brief into a baseline article
 with a generated quiz + branches.
 > **Prompts are inline** in `synthesize.ts` / `baseline.ts` (and the edge function),
@@ -273,14 +275,20 @@ Two tracks advance together; the client is never blocked on the server.
    sub-field tagging, base-difficulty estimation, and embeddings are **not** done.
 4. **Baseline** (`baseline.ts`, ✅ basic) — turns each fresh story into an `articles`
    row (`author_id = null`) with a generated quiz + branches.
-5. **Rank & serve** (⬜) — **no** "best-per-field-per-day" ranking and **no HTTP
-   serving API**. This is the missing piece behind sync-point **S2**.
+5. **Rank & serve** (✅ basic) — per field, the highest-importance fresh story
+   converts to a baseline (quiz-less baselines are skipped, source count +
+   publisher domains copied on for attribution, migration `0010`); the client
+   pulls the freshest ≤48h baseline. No HTTP API — the client reads Postgres
+   directly under RLS, which serves fine at this scale.
 
 CLIs: `npm run ingest | synthesize | baseline` (each a `run-*.ts`). Needs
-`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `ANTHROPIC_API_KEY` (see `server/.env.example`).
+`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `ANTHROPIC_API_KEY` *or* `GROQ_API_KEY`
+(see `server/.env.example`).
 
 **Sync points:** **S1** (client auth/profile ↔ real Supabase) ✅ · **S2** (client
-pulls a *real* baseline and personalizes end-to-end) 🟡 · **S3** (on-device offline) ⬜.
+pulls a *real* baseline and personalizes end-to-end) ✅ code-complete — needs the
+`SUPABASE_SERVICE_ROLE_KEY` + `GROQ_API_KEY` repo secrets for the first green run ·
+**S3** (on-device offline) ⬜.
 
 ---
 

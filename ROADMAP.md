@@ -97,7 +97,9 @@ tagging, base-difficulty estimation, populating embeddings.
 
 ### B4 · Baseline articles, ranking & serving API  🟡  (enables S2)
 `baseline.ts` turns each story into an `articles` row with a generated quiz + branches.
-**Remaining (the S2 blocker):** "best-per-field-per-day" ranking and an **HTTP serving
+**Basic rank & serve landed** (highest-importance story per field per day converts; quality gate
+skips quiz-less baselines; source attribution copied onto articles; client pulls the freshest
+≤48h baseline and shows "Synthesized from N real news sources"). Remaining polish: an **HTTP serving
 API** the client pulls from.
 
 ### B5 · Scheduling, dedup & monitoring  ⬜
@@ -109,7 +111,7 @@ daily cron exists today.
 ## Sync points
 
 - **S1** (A1 + B0) ✅ — client auth/profile writes to real Supabase; two devices on one account stay in sync.
-- **S2** (A4 + B4) 🟡 — client *can* personalize a baseline, but no serving/ranking API means it isn't wired into the daily loop yet. **This is the priority.**
+- **S2** (A4 + B4) ✅ code-complete — ranked, quality-gated baselines with attribution; client pulls the freshest ≤48h one into the daily loop. First green pipeline run pending the `SUPABASE_SERVICE_ROLE_KEY` + `GROQ_API_KEY` repo secrets.
 - **S3** (A5) ⬜ — on-device personalization works offline on supported hardware.
 
 ---
