@@ -27,10 +27,16 @@ async function fetchGdelt(query: string): Promise<GdeltArticle[]> {
   u.searchParams.set('maxrecords', '25');
   u.searchParams.set('timespan', '1d');
   u.searchParams.set('sort', 'HybridRel');
-  const res = await fetch(u, { headers: { 'user-agent': 'Lumina/0.1 (news synthesis)' } });
-  if (!res.ok) return [];
-  const data = (await res.json().catch(() => null)) as { articles?: GdeltArticle[] } | null;
-  return data?.articles ?? [];
+  try {
+    const res = await fetch(u, { headers: { 'user-agent': 'Lumina/0.1 (news synthesis)' } });
+    if (!res.ok) return [];
+    const data = (await res.json().catch(() => null)) as { articles?: GdeltArticle[] } | null;
+    return data?.articles ?? [];
+  } catch (e) {
+    // One field's network failure shouldn't kill the whole ingest run.
+    console.error(`ingest fetch failed for "${query}": ${(e as Error).message}`);
+    return [];
+  }
 }
 
 export async function ingest(): Promise<{ fetched: number; inserted: number }> {
