@@ -45,6 +45,18 @@ jobs:
           cache-dependency-path: apps/mobile/package-lock.json
       - run: npm ci
 
+      # Apple requires every upload's CFBundleVersion to be higher than the last;
+      # stamp it with the monotonic workflow run number before prebuild bakes it in.
+      - name: Set build number from run number
+        run: |
+          node -e "
+            const fs = require('fs');
+            const app = JSON.parse(fs.readFileSync('app.json', 'utf8'));
+            app.expo.ios = { ...app.expo.ios, buildNumber: String(${{ github.run_number }}) };
+            fs.writeFileSync('app.json', JSON.stringify(app, null, 2) + '\n');
+          "
+          echo "buildNumber = ${{ github.run_number }}"
+
       - name: Generate native iOS project
         run: npx expo prebuild -p ios --no-install
         env:
